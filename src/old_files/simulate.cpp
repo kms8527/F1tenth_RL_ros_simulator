@@ -69,12 +69,12 @@ private:
     // The car state and parameters
     CarState state;
     double previous_seconds;
-    double scan_distance_to_base_link;
-    double max_speed, max_steering_angle;
-    double max_accel, max_steering_vel;
+    double scan_distance_to_base_link_;
+    double max_speed_, max_steering_angle_;
+    double max_accel_, max_steering_vel_;
     double accel, steer_angle_vel;
-    CarParams params;
-    double width;
+    CarParams params_;
+    double width_;
 
     // A simulator of the laser
     ScanSimulator2D scan_simulator;
@@ -127,8 +127,8 @@ private:
     ros::Subscriber op_drive_sub;
 
     // keep an original map for obstacles
-    nav_msgs::OccupancyGrid original_map;
-    nav_msgs::OccupancyGrid current_map;
+    nav_msgs::OccupancyGrid original_map_;
+    nav_msgs::OccupancyGrid current_map_;
 
     // for obstacle collision
     int map_width, map_height, inflation_size;
@@ -240,26 +240,26 @@ public:
         // Fetch the car parameters
         int scan_beams;
         double update_pose_rate, scan_std_dev;
-        n.getParam("wheelbase", params.wheelbase);
+        n.getParam("wheelbase", params_.wheelbase);
         n.getParam("update_pose_rate", update_pose_rate);
         n.getParam("scan_beams", scan_beams);
         n.getParam("scan_field_of_view", scan_fov);
         n.getParam("scan_std_dev", scan_std_dev);
         n.getParam("map_free_threshold", map_free_threshold);
-        n.getParam("scan_distance_to_base_link", scan_distance_to_base_link);
-        n.getParam("max_speed", max_speed);
-        n.getParam("max_steering_angle", max_steering_angle);
-        n.getParam("max_accel", max_accel);
-        n.getParam("max_steering_vel", max_steering_vel);
-        n.getParam("friction_coeff", params.friction_coeff);
-        n.getParam("height_cg", params.h_cg);
-        n.getParam("l_cg2rear", params.l_r);
-        n.getParam("l_cg2front", params.l_f);
-        n.getParam("C_S_front", params.cs_f);
-        n.getParam("C_S_rear", params.cs_r);
-        n.getParam("moment_inertia", params.I_z);
-        n.getParam("mass", params.mass);
-        n.getParam("width", width);
+        n.getParam("scan_distance_to_base_link", scan_distance_to_base_link_);
+        n.getParam("max_speed", max_speed_);
+        n.getParam("max_steering_angle", max_steering_angle_);
+        n.getParam("max_accel", max_accel_);
+        n.getParam("max_steering_vel", max_steering_vel_);
+        n.getParam("friction_coeff", params_.friction_coeff);
+        n.getParam("height_cg", params_.h_cg);
+        n.getParam("l_cg2rear", params_.l_r);
+        n.getParam("l_cg2front", params_.l_f);
+        n.getParam("C_S_front", params_.cs_f);
+        n.getParam("C_S_rear", params_.cs_r);
+        n.getParam("moment_inertia", params_.I_z);
+        n.getParam("mass", params_.mass);
+        n.getParam("width", width_);
 
         // get mux idxs
         n.getParam("mux_size", mux_size);
@@ -335,8 +335,8 @@ public:
         if (map_ptr != NULL) {
             map_msg = *map_ptr;
         }
-        original_map = map_msg;
-        current_map = map_msg;
+        original_map_ = map_msg;
+        current_map_ = map_msg;
         std::vector<int8_t> map_data_raw = map_msg.data;
         std::vector<int> map_data(map_data_raw.begin(), map_data_raw.end());
 
@@ -481,9 +481,9 @@ public:
         // precompute cosines and distance from lidar to edge of car for each beam
         cosines.reserve(scan_beams);
         car_distances.reserve(scan_beams);
-        double dist_to_sides = width / 2.0;
-        double dist_to_front = params.wheelbase - scan_distance_to_base_link;
-        double dist_to_back = scan_distance_to_base_link;
+        double dist_to_sides = width_ / 2.0;
+        double dist_to_front = params_.wheelbase - scan_distance_to_base_link_;
+        double dist_to_back = scan_distance_to_base_link_;
 
         for (int i = 0; i < scan_beams; i++) {
             double angle = -scan_fov/2.0 + i * scan_ang_incr;
@@ -617,20 +617,20 @@ public:
                         state,
                         accel,
                         steer_angle_vel,
-                        params,
+                        params_,
                         current_seconds - previous_seconds);
-            state.velocity = std::min(std::max(state.velocity, -max_speed), max_speed);
-            state.steer_angle = std::min(std::max(state.steer_angle, -max_steering_angle), max_steering_angle);
+            state.velocity = std::min(std::max(state.velocity, -max_speed_), max_speed_);
+            state.steer_angle = std::min(std::max(state.steer_angle, -max_steering_angle_), max_steering_angle_);
 
             previous_opponent_pose = opponent_pose;
             opponent_pose = STKinematics::update(
                         opponent_pose,
                         opponent_accel,
                         opponent_steer_angle_vel,
-                        params,
+                        params_,
                         current_seconds - previous_seconds);
-            opponent_pose.velocity = std::min(std::max(opponent_pose.velocity, -max_speed), max_speed);
-            opponent_pose.steer_angle = std::min(std::max(opponent_pose.steer_angle, -max_steering_angle), max_steering_angle);
+            opponent_pose.velocity = std::min(std::max(opponent_pose.velocity, -max_speed_), max_speed_);
+            opponent_pose.steer_angle = std::min(std::max(opponent_pose.steer_angle, -max_steering_angle_), max_steering_angle_);
 
             previous_seconds = current_seconds;
 
@@ -754,13 +754,13 @@ public:
                 // Get the pose of the lidar, given the pose of base link
                 // (base link is the center of the rear axle)
                 Pose2D scan_pose;
-                scan_pose.x = state.x + scan_distance_to_base_link * std::cos(state.theta);
-                scan_pose.y = state.y + scan_distance_to_base_link * std::sin(state.theta);
+                scan_pose.x = state.x + scan_distance_to_base_link_ * std::cos(state.theta);
+                scan_pose.y = state.y + scan_distance_to_base_link_ * std::sin(state.theta);
                 scan_pose.theta = state.theta;
 
                 Pose2D op_scan_pose;
-                op_scan_pose.x = opponent_pose.x + scan_distance_to_base_link * std::cos(opponent_pose.theta);
-                op_scan_pose.y = opponent_pose.y + scan_distance_to_base_link * std::sin(opponent_pose.theta);
+                op_scan_pose.x = opponent_pose.x + scan_distance_to_base_link_ * std::cos(opponent_pose.theta);
+                op_scan_pose.y = opponent_pose.y + scan_distance_to_base_link_ * std::sin(opponent_pose.theta);
                 op_scan_pose.theta = opponent_pose.theta;
 
                 // Compute the scan from the lidar
@@ -887,7 +887,7 @@ public:
                 /// KEEP in sim (helper function)
                 // Publish a transformation between base link and laser
                 geometry_msgs::TransformStamped scan_ts;
-                scan_ts.transform.translation.x = scan_distance_to_base_link;
+                scan_ts.transform.translation.x = scan_distance_to_base_link_;
                 scan_ts.transform.rotation.w = 1;
                 scan_ts.header.stamp = timestamp;
                 scan_ts.header.frame_id = base_frame;
@@ -895,7 +895,7 @@ public:
                 br.sendTransform(scan_ts);
 
                 geometry_msgs::TransformStamped op_scan_ts;
-                op_scan_ts.transform.translation.x = scan_distance_to_base_link;
+                op_scan_ts.transform.translation.x = scan_distance_to_base_link_;
                 op_scan_ts.transform.rotation.w = 1;
                 op_scan_ts.header.stamp = timestamp;
                 op_scan_ts.header.frame_id = op_base_frame;
@@ -1009,8 +1009,8 @@ public:
             // joy controller:
             // get values to be set at top of update_pose
             if (mux_controller[joy_mux_idx] && joy_on) {
-                joy_desired_velocity = max_speed * msg.axes[joy_speed_axis];
-                joy_desired_steer = max_steering_angle * msg.axes[joy_angle_axis];
+                joy_desired_velocity = max_speed_ * msg.axes[joy_speed_axis];
+                joy_desired_steer = max_steering_angle_ * msg.axes[joy_angle_axis];
             }
 
 
@@ -1098,12 +1098,12 @@ public:
 
         /// KEEP in sim
         void set_accel(double accel_) {
-            accel = std::min(std::max(accel_, -max_accel), max_accel);
+            accel = std::min(std::max(accel_, -max_accel_), max_accel_);
         }
 
         /// KEEP in sim
         void set_steer_angle_vel(double steer_angle_vel_) {
-            steer_angle_vel = std::min(std::max(steer_angle_vel_, -max_steering_vel), max_steering_vel);
+            steer_angle_vel = std::min(std::max(steer_angle_vel_, -max_steering_vel_), max_steering_vel_);
         }
 
         /// KEEP in sim
@@ -1114,10 +1114,10 @@ public:
                     int current_r = rc[0]+i;
                     int current_c = rc[1]+j;
                     int current_ind = rc_2_ind(current_r, current_c);
-                    current_map.data[current_ind] = 100;
+                    current_map_.data[current_ind] = 100;
                 }
             }
-            map_pub.publish(current_map);
+            map_pub.publish(current_map_);
         }
 
         /// KEEP in sim
@@ -1128,11 +1128,11 @@ public:
                     int current_r = rc[0]+i;
                     int current_c = rc[1]+j;
                     int current_ind = rc_2_ind(current_r, current_c);
-                    current_map.data[current_ind] = 0;
+                    current_map_.data[current_ind] = 0;
 
                 }
             }
-            map_pub.publish(current_map);
+            map_pub.publish(current_map_);
         }
 
         /// KEEP in sim
@@ -1144,8 +1144,8 @@ public:
             }
             if (clear_obs_clicked) {
                 ROS_INFO("Clearing obstacles.");
-                current_map = original_map;
-                map_pub.publish(current_map);
+                current_map_ = original_map_;
+                map_pub.publish(current_map_);
 
                 clear_obs_clicked = false;
             }
@@ -1179,12 +1179,12 @@ public:
 
         /// KEEP in sim
         void set_op_accel(double accel_) {
-            opponent_accel = std::min(std::max(accel_, -max_accel), max_accel);
+            opponent_accel = std::min(std::max(accel_, -max_accel_), max_accel_);
         }
 
         /// KEEP in sim
         void set_op_steer_angle_vel(double steer_angle_vel_) {
-            opponent_steer_angle_vel = std::min(std::max(steer_angle_vel_, -max_steering_vel), max_steering_vel);
+            opponent_steer_angle_vel = std::min(std::max(steer_angle_vel_, -max_steering_vel_), max_steering_vel_);
         }
 
         /// KEEP in sim
@@ -1230,7 +1230,7 @@ public:
             // calculate velocity
             double steer_vel;
             if (std::abs(dif) > .02)  // if the difference is not trivial
-                steer_vel = dif / std::abs(dif) * max_steering_vel;
+                steer_vel = dif / std::abs(dif) * max_steering_vel_;
             else
                 steer_vel = 0;
 
@@ -1243,7 +1243,7 @@ public:
             // get difference between current and desired
             double dif = (desired_velocity - state.velocity);
 
-            double kp = 2.0 * max_accel / max_speed;
+            double kp = 2.0 * max_accel_ / max_speed_;
 
             // calculate acceleration
             double acceleration = kp * dif;

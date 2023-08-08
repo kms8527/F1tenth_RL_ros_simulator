@@ -29,13 +29,15 @@
 #include <iostream>
 #include <math.h>
 
+#include <functional>
+
 using namespace racecar_simulator;
 
 class RacecarSimulator {
   private:
     // A ROS node
     ros::NodeHandle n;
-    int obj_num;
+    int obj_num_;
     // The transformation frames used
     std::string map_frame, base_frame, scan_frame;
 
@@ -49,22 +51,22 @@ class RacecarSimulator {
     interactive_markers::InteractiveMarkerServer im_server;
 
     // The car state and parameters
-    CarState state;
+    std::vector<CarState> state_;
     double previous_seconds;
-    double scan_distance_to_base_link;
-    double max_speed, max_steering_angle;
-    double max_accel, max_steering_vel, max_decel;
-    double desired_speed, desired_steer_ang, desired_accel;
-    double accel, steer_angle_vel;
-    CarParams params;
-    double width;
+    double scan_distance_to_base_link_;
+    double max_speed_, max_steering_angle_;
+    double max_accel_, max_steering_vel_, max_decel_;
+    std::vector<double> desired_speed_, desired_steer_ang_, desired_accel_;
+    std::vector<double> accel_, steer_angle_vel_;
+    CarParams params_;
+    double width_;
 
     // A simulator of the laser
     ScanSimulator2D scan_simulator;
     double map_free_threshold;
 
     // For publishing transformations
-    tf2_ros::TransformBroadcaster br;
+    tf2_ros::TransformBroadcaster br_;
 
     // A timer to update the pose
     ros::Timer update_pose_timer;
@@ -90,8 +92,8 @@ class RacecarSimulator {
     ros::Publisher map_pub;
 
     // keep an original map for obstacles
-    nav_msgs::OccupancyGrid original_map;
-    nav_msgs::OccupancyGrid current_map;
+    nav_msgs::OccupancyGrid original_map_;
+    nav_msgs::OccupancyGrid current_map_;
 
     // for obstacle collision
     int map_width, map_height;
@@ -123,19 +125,8 @@ class RacecarSimulator {
         // Initialize the node handle
         n = ros::NodeHandle("~");
 
-        // Initialize car state and driving commands
-        state = {.x = 0,
-                 .y = 0,
-                 .theta = 0,
-                 .velocity = 0,
-                 .steer_angle = 0.0,
-                 .angular_velocity = 0.0,
-                 .slip_angle = 0.0,
-                 .st_dyn = false};
-        accel = 0.0;
-        steer_angle_vel = 0.0;
-        desired_speed = 0.0;
-        desired_steer_ang = 0.0;
+        clearvector();
+
         previous_seconds = ros::Time::now().toSec();
 
         // Get the topic names
@@ -157,28 +148,28 @@ class RacecarSimulator {
         // Fetch the car parameters
         int scan_beams;
         double update_pose_rate, scan_std_dev;
-        n.getParam("obs_num", obj_num);
-        n.getParam("wheelbase", params.wheelbase);
+        n.getParam("obj_num", obj_num_);
+        n.getParam("wheelbase", params_.wheelbase);
         n.getParam("update_pose_rate", update_pose_rate);
         n.getParam("scan_beams", scan_beams);
         n.getParam("scan_field_of_view", scan_fov);
         n.getParam("scan_std_dev", scan_std_dev);
         n.getParam("map_free_threshold", map_free_threshold);
-        n.getParam("scan_distance_to_base_link", scan_distance_to_base_link);
-        n.getParam("max_speed", max_speed);
-        n.getParam("max_steering_angle", max_steering_angle);
-        n.getParam("max_accel", max_accel);
-        n.getParam("max_decel", max_decel);
-        n.getParam("max_steering_vel", max_steering_vel);
-        n.getParam("friction_coeff", params.friction_coeff);
-        n.getParam("height_cg", params.h_cg);
-        n.getParam("l_cg2rear", params.l_r);
-        n.getParam("l_cg2front", params.l_f);
-        n.getParam("C_S_front", params.cs_f);
-        n.getParam("C_S_rear", params.cs_r);
-        n.getParam("moment_inertia", params.I_z);
-        n.getParam("mass", params.mass);
-        n.getParam("width", width);
+        n.getParam("scan_distance_to_base_link", scan_distance_to_base_link_);
+        n.getParam("max_speed", max_speed_);
+        n.getParam("max_steering_angle", max_steering_angle_);
+        n.getParam("max_accel", max_accel_);
+        n.getParam("max_decel", max_decel_);
+        n.getParam("max_steering_vel", max_steering_vel_);
+        n.getParam("friction_coeff", params_.friction_coeff);
+        n.getParam("height_cg", params_.h_cg);
+        n.getParam("l_cg2rear", params_.l_r);
+        n.getParam("l_cg2front", params_.l_f);
+        n.getParam("C_S_front", params_.cs_f);
+        n.getParam("C_S_rear", params_.cs_r);
+        n.getParam("moment_inertia", params_.I_z);
+        n.getParam("mass", params_.mass);
+        n.getParam("width", width_);
 
         // clip velocity
         n.getParam("speed_clip_diff", speed_clip_diff);
@@ -189,17 +180,28 @@ class RacecarSimulator {
         // Get obstacle size parameter
         n.getParam("obstacle_size", obstacle_size);
 
+        // Initialize car state and driving commands
+        for (int i = 0; i < obj_num_; i++) {
+            CarState state = {.x = 0,
+                              .y = 0,
+                              .theta = 0,
+                              .velocity = 0,
+                              .steer_angle = 0.0,
+                              .angular_velocity = 0.0,
+                              .slip_angle = 0.0,
+                              .st_dyn = false};
+
+            state_.push_back(state);
+
+            accel_.push_back(0.0);
+            steer_angle_vel_.push_back(0.0);
+            desired_speed_.push_back(0.0);
+            desired_steer_ang_.push_back(0.0);
+            desired_accel_.push_back(0.0);
+        }
+
         // Initialize a simulator of the laser scanner
         scan_simulator = ScanSimulator2D(scan_beams, scan_fov, scan_std_dev);
-
-        // Make a publisher for laser scan messages
-        scan_pub = n.advertise<sensor_msgs::LaserScan>(scan_topic, 1);
-
-        // Make a publisher for odometry messages
-        odom_pub = n.advertise<nav_msgs::Odometry>(odom_topic, 1);
-
-        // Make a publisher for IMU messages
-        imu_pub = n.advertise<sensor_msgs::Imu>(imu_topic, 1);
 
         // Make a publisher for publishing map with obstacles
         map_pub = n.advertise<nav_msgs::OccupancyGrid>("/map", 1);
@@ -209,23 +211,45 @@ class RacecarSimulator {
                                           &RacecarSimulator::update_pose, this);
 
         // Start a subscriber to listen to drive commands
-        for (size_t i = 0; i < obj_num; i++) {
-            ros::Subscriber drive_sub;
+        for (int i = 0; i < obj_num_; i++) {
+            ros::Subscriber drive_sub, pose_sub, pose_rviz_sub;
+            ros::Publisher scan_pub, odom_pub, imu_pub;
 
-            drive_sub = n.subscribe(drive_topic, 1,
-                                    &RacecarSimulator::drive_callback, this);
+            drive_sub = n.subscribe<ackermann_msgs::AckermannDriveStamped>(
+                drive_topic + std::to_string(i), 1,
+                boost::bind(&RacecarSimulator::drive_callback, this, _1, i));
+            pose_sub = n.subscribe<geometry_msgs::PoseStamped>(
+                pose_topic + std::to_string(i), 1,
+                boost::bind(&RacecarSimulator::pose_callback, this, _1, i));
+            pose_rviz_sub =
+                n.subscribe<geometry_msgs::PoseWithCovarianceStamped>(
+                    pose_rviz_topic + std::to_string(i), 1,
+                    boost::bind(&RacecarSimulator::pose_rviz_callback, this, _1,
+                                i));
+
+            // Make a publisher for laser scan messages
+            scan_pub = n.advertise<sensor_msgs::LaserScan>(
+                scan_topic + std::to_string(i), 1);
+
+            // Make a publisher for odometry messages
+            odom_pub = n.advertise<nav_msgs::Odometry>(
+                odom_topic + std::to_string(i), 1);
+
+            // Make a publisher for IMU messages
+            imu_pub =
+                n.advertise<sensor_msgs::Imu>(imu_topic + std::to_string(i), 1);
+
             drive_sub_.push_back(drive_sub);
+            // pose_sub_.push_back(pose_sub);
+            // pose_rviz_sub_.push_back(pose_rviz_sub);
+            scan_pub_.push_back(scan_pub);
+            odom_pub_.push_back(odom_pub);
+            imu_pub_.push_back(imu_pub);
         }
 
         // Start a subscriber to listen to new maps
         map_sub =
             n.subscribe(map_topic, 1, &RacecarSimulator::map_callback, this);
-
-        // Start a subscriber to listen to pose messages
-        pose_sub =
-            n.subscribe(pose_topic, 1, &RacecarSimulator::pose_callback, this);
-        pose_rviz_sub = n.subscribe(
-            pose_rviz_topic, 1, &RacecarSimulator::pose_rviz_callback, this);
 
         // obstacle subscriber
         obs_sub = n.subscribe("/clicked_point", 1,
@@ -240,7 +264,7 @@ class RacecarSimulator {
         cosines =
             Precompute::get_cosines(scan_beams, -scan_fov / 2.0, scan_ang_incr);
         car_distances = Precompute::get_car_distances(
-            scan_beams, params.wheelbase, width, scan_distance_to_base_link,
+            scan_beams, params_.wheelbase, width_, scan_distance_to_base_link_,
             -scan_fov / 2.0, scan_ang_incr);
 
         // OBSTACLE BUTTON:
@@ -251,8 +275,8 @@ class RacecarSimulator {
         if (map_ptr != NULL) {
             map_msg = *map_ptr;
         }
-        original_map = map_msg;
-        current_map = map_msg;
+        original_map_ = map_msg;
+        current_map_ = map_msg;
         std::vector<int8_t> map_data_raw = map_msg.data;
         std::vector<int> map_data(map_data_raw.begin(), map_data_raw.end());
 
@@ -304,102 +328,122 @@ class RacecarSimulator {
         ROS_INFO("Simulator constructed.");
     }
 
+    void clearvector() {
+        state_.clear();
+        accel_.clear();
+        steer_angle_vel_.clear();
+        desired_speed_.clear();
+        desired_steer_ang_.clear();
+        desired_accel_.clear();
+        drive_sub_.clear();
+        scan_pub_.clear();
+        odom_pub_.clear();
+        imu_pub_.clear();
+    }
+
     void update_pose(const ros::TimerEvent &) {
 
         // simulate P controller
+        for (int i = 0; i < obj_num_; i++) {
+            // compute_accel(desired_speed);
+            set_accel(desired_accel_[i]);
+            set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i));
 
-        // compute_accel(desired_speed);
-        set_accel(desired_accel);
-        set_steer_angle_vel(compute_steer_vel(desired_steer_ang));
+            // Update the pose
+            ros::Time timestamp = ros::Time::now();
+            double current_seconds = timestamp.toSec();
+            state_[i] = STKinematics::update(
+                state_[i], accel_[i], steer_angle_vel_[i], params_,
+                current_seconds - previous_seconds);
+            state_[i].velocity =
+                std::min(std::max(state_[i].velocity, -max_speed_), max_speed_);
+            state_[i].steer_angle =
+                std::min(std::max(state_[i].steer_angle, -max_steering_angle_),
+                         max_steering_angle_);
 
-        // Update the pose
-        ros::Time timestamp = ros::Time::now();
-        double current_seconds = timestamp.toSec();
-        state = STKinematics::update(state, accel, steer_angle_vel, params,
-                                     current_seconds - previous_seconds);
-        state.velocity =
-            std::min(std::max(state.velocity, -max_speed), max_speed);
-        state.steer_angle =
-            std::min(std::max(state.steer_angle, -max_steering_angle),
-                     max_steering_angle);
+            previous_seconds = current_seconds;
 
-        previous_seconds = current_seconds;
+            /// Publish the pose as a transformation
+            pub_pose_transform(timestamp, i);
 
-        /// Publish the pose as a transformation
-        pub_pose_transform(timestamp, obj_num);
+            /// Publish the steering angle as a transformation so the wheels
+            pub_steer_ang_transform(timestamp, i);
 
-        /// Publish the steering angle as a transformation so the wheels move
-        pub_steer_ang_transform(timestamp, obj_num);
+            // Make an odom message as well and publish it
+            pub_odom(timestamp, i);
 
-        // Make an odom message as well and publish it
-        pub_odom(timestamp, obj_num);
+            // TODO: make and publish IMU message
+            pub_imu(timestamp, i);
 
-        // TODO: make and publish IMU message
-        pub_imu(timestamp, obj_num);
+            /// KEEP in sim
+            // If we have a map, perform a scan
+            if (map_exists) {
+                // Get the pose of the lidar, given the pose of base link
+                // (base link is the center of the rear axle)
+                Pose2D scan_pose;
+                scan_pose.x = state_[i].x + scan_distance_to_base_link_ *
+                                                std::cos(state_[i].theta);
+                scan_pose.y = state_[i].y + scan_distance_to_base_link_ *
+                                                std::sin(state_[i].theta);
+                scan_pose.theta = state_[i].theta;
 
-        /// KEEP in sim
-        // If we have a map, perform a scan
-        if (map_exists) {
-            // Get the pose of the lidar, given the pose of base link
-            // (base link is the center of the rear axle)
-            Pose2D scan_pose;
-            scan_pose.x =
-                state.x + scan_distance_to_base_link * std::cos(state.theta);
-            scan_pose.y =
-                state.y + scan_distance_to_base_link * std::sin(state.theta);
-            scan_pose.theta = state.theta;
+                // Compute the scan from the lidar
+                std::vector<double> scan = scan_simulator.scan(scan_pose);
 
-            // Compute the scan from the lidar
-            std::vector<double> scan = scan_simulator.scan(scan_pose);
+                // Convert to float
+                std::vector<float> scan_float(scan.size());
+                for (size_t i = 0; i < scan.size(); i++)
+                    scan_float[i] = scan[i];
 
-            // Convert to float
-            std::vector<float> scan_(scan.size());
-            for (size_t i = 0; i < scan.size(); i++)
-                scan_[i] = scan[i];
+                // TTC Calculations are done here so the car can be halted in
+                // the simulator: to reset TTC
+                bool no_collision = true;
+                if (state_[i].velocity != 0) {
+                    for (size_t i = 0; i < scan_float.size(); i++) {
+                        // TTC calculations
 
-            // TTC Calculations are done here so the car can be halted in the
-            // simulator: to reset TTC
-            bool no_collision = true;
-            if (state.velocity != 0) {
-                for (size_t i = 0; i < scan_.size(); i++) {
-                    // TTC calculations
+                        // calculate projected velocity
+                        double proj_velocity = state_[i].velocity * cosines[i];
+                        double ttc = (scan_float[i] - car_distances[i]) /
+                                     proj_velocity; // ???
+                        // if it's small enough to count as a collision
+                        if ((ttc < ttc_threshold) && (ttc >= 0.0)) {
+                            if (!TTC) {
+                                first_ttc_actions();
+                            }
 
-                    // calculate projected velocity
-                    double proj_velocity = state.velocity * cosines[i];
-                    double ttc = (scan_[i] - car_distances[i]) / proj_velocity;
-                    // if it's small enough to count as a collision
-                    if ((ttc < ttc_threshold) && (ttc >= 0.0)) {
-                        if (!TTC) {
-                            first_ttc_actions();
+                            no_collision = false;
+                            TTC = true;
+
+                            ROS_INFO("Collision detected");
                         }
-
-                        no_collision = false;
-                        TTC = true;
-
-                        ROS_INFO("Collision detected");
                     }
                 }
+
+                // reset TTC
+                if (no_collision)
+                    TTC = false;
+
+                // Publish the laser message
+                for (int i = 0; i < obj_num_; i++) {
+                    sensor_msgs::LaserScan scan_msg;
+                    scan_msg.header.stamp = timestamp;
+                    scan_msg.header.frame_id = scan_frame + std::to_string(i);
+                    scan_msg.angle_min =
+                        -scan_simulator.get_field_of_view() / 2.;
+                    scan_msg.angle_max =
+                        scan_simulator.get_field_of_view() / 2.;
+                    scan_msg.angle_increment =
+                        scan_simulator.get_angle_increment();
+                    scan_msg.range_max = 100;
+                    scan_msg.ranges = scan_float;
+                    scan_msg.intensities = scan_float;
+                    scan_pub_[i].publish(scan_msg);
+                }
+
+                // Publish a transformation between base link and laser
+                pub_laser_link_transform(timestamp, i);
             }
-
-            // reset TTC
-            if (no_collision)
-                TTC = false;
-
-            // Publish the laser message
-            sensor_msgs::LaserScan scan_msg;
-            scan_msg.header.stamp = timestamp;
-            scan_msg.header.frame_id = scan_frame;
-            scan_msg.angle_min = -scan_simulator.get_field_of_view() / 2.;
-            scan_msg.angle_max = scan_simulator.get_field_of_view() / 2.;
-            scan_msg.angle_increment = scan_simulator.get_angle_increment();
-            scan_msg.range_max = 100;
-            scan_msg.ranges = scan_;
-            scan_msg.intensities = scan_;
-
-            scan_pub.publish(scan_msg);
-
-            // Publish a transformation between base link and laser
-            pub_laser_link_transform(timestamp);
         }
 
     } // end of update_pose
@@ -425,24 +469,26 @@ class RacecarSimulator {
     }
 
     void first_ttc_actions() {
+        for (int i = 0; i < obj_num_; i++) {
+            state_[i].velocity = 0.0;
+            state_[i].angular_velocity = 0.0;
+            state_[i].slip_angle = 0.0;
+            state_[i].steer_angle = 0.0;
+            steer_angle_vel_[i] = 0.0;
+            accel_[i] = 0.0;
+            desired_speed_[i] = 0.0;
+            desired_steer_ang_[i] = 0.0;
+        }
         // completely stop vehicle
-        state.velocity = 0.0;
-        state.angular_velocity = 0.0;
-        state.slip_angle = 0.0;
-        state.steer_angle = 0.0;
-        steer_angle_vel = 0.0;
-        accel = 0.0;
-        desired_speed = 0.0;
-        desired_steer_ang = 0.0;
     }
 
-    void set_accel(double accel_) {
-        accel = std::min(std::max(accel_, -max_accel), max_accel);
+    void set_accel(double accel) {
+        accel = std::min(std::max(accel, -max_accel_), max_accel_);
     }
 
-    void set_steer_angle_vel(double steer_angle_vel_) {
+    void set_steer_angle_vel(double steer_angle_vel) {
         steer_angle_vel = std::min(
-            std::max(steer_angle_vel_, -max_steering_vel), max_steering_vel);
+            std::max(steer_angle_vel, -max_steering_vel_), max_steering_vel_);
     }
 
     void add_obs(int ind) {
@@ -452,10 +498,10 @@ class RacecarSimulator {
                 int current_r = rc[0] + i;
                 int current_c = rc[1] + j;
                 int current_ind = rc_2_ind(current_r, current_c);
-                current_map.data[current_ind] = 100;
+                current_map_.data[current_ind] = 100;
             }
         }
-        map_pub.publish(current_map);
+        map_pub.publish(current_map_);
     }
 
     void clear_obs(int ind) {
@@ -465,20 +511,20 @@ class RacecarSimulator {
                 int current_r = rc[0] + i;
                 int current_c = rc[1] + j;
                 int current_ind = rc_2_ind(current_r, current_c);
-                current_map.data[current_ind] = 0;
+                current_map_.data[current_ind] = 0;
             }
         }
-        map_pub.publish(current_map);
+        map_pub.publish(current_map_);
     }
 
-    double compute_steer_vel(double desired_angle) {
+    double compute_steer_vel(double desired_angle, size_t i) {
         // get difference between current and desired
-        double dif = (desired_angle - state.steer_angle);
+        double dif = (desired_angle - state_[i].steer_angle);
 
         // calculate velocity
         double steer_vel;
         if (std::abs(dif) > .0001) // if the difference is not trivial
-            steer_vel = dif / std::abs(dif) * max_steering_vel;
+            steer_vel = dif / std::abs(dif) * max_steering_vel_;
         else {
             steer_vel = 0;
         }
@@ -486,27 +532,27 @@ class RacecarSimulator {
         return steer_vel;
     }
 
-    void compute_accel(double desired_velocity) {
+    void compute_accel(double desired_velocity, size_t i) {
         // get difference between current and desired
-        double dif = (desired_velocity - state.velocity);
+        double dif = (desired_velocity - state_[i].velocity);
 
-        if (state.velocity > 0) {
+        if (state_[i].velocity > 0) {
             if (dif > 0) {
                 // accelerate
-                double kp = 2.0 * max_accel / max_speed;
+                double kp = 2.0 * max_accel_ / max_speed_;
                 set_accel(kp * dif);
             } else {
                 // brake
-                accel = -max_decel;
+                accel_[i] = -max_decel_;
             }
         } else {
             if (dif > 0) {
                 // brake
-                accel = max_decel;
+                accel_[i] = max_decel_;
 
             } else {
                 // accelerate
-                double kp = 2.0 * max_accel / max_speed;
+                double kp = 2.0 * max_accel_ / max_speed_;
                 set_accel(kp * dif);
             }
         }
@@ -523,26 +569,38 @@ class RacecarSimulator {
         add_obs(ind);
     }
 
-    void pose_callback(const geometry_msgs::PoseStamped &msg) {
-        state.x = msg.pose.position.x;
-        state.y = msg.pose.position.y;
-        geometry_msgs::Quaternion q = msg.pose.orientation;
+    // void pose_callback(const geometry_msgs::PoseStamped &msg) {
+    //     state_[i].x = msg.pose.position.x;
+    //     state_[i].y = msg.pose.position.y;
+    //     geometry_msgs::Quaternion q = msg.pose.orientation;
+    //     tf2::Quaternion quat(q.x, q.y, q.z, q.w);
+    //     state_[i].theta = tf2::impl::getYaw(quat);
+    // }
+
+    void pose_callback(const geometry_msgs::PoseStampedConstPtr &msg, int i) {
+        state_[i].x = msg->pose.position.x;
+        state_[i].y = msg->pose.position.y;
+        geometry_msgs::Quaternion q = msg->pose.orientation;
         tf2::Quaternion quat(q.x, q.y, q.z, q.w);
-        state.theta = tf2::impl::getYaw(quat);
+        state_[i].theta = tf2::impl::getYaw(quat);
     }
 
     void pose_rviz_callback(
-        const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg) {
+        const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg, size_t i) {
         geometry_msgs::PoseStamped temp_pose;
         temp_pose.header = msg->header;
         temp_pose.pose = msg->pose.pose;
-        pose_callback(temp_pose);
+        boost::shared_ptr<geometry_msgs::PoseStamped> shared_pose(
+            &temp_pose, [](geometry_msgs::PoseStamped *) {});
+        pose_callback(shared_pose, i);
+        // pose_callback(&temp_pose, i);
     }
 
-    void drive_callback(const ackermann_msgs::AckermannDriveStamped &msg) {
-        desired_speed = msg.drive.speed;
-        desired_accel = msg.drive.acceleration;
-        desired_steer_ang = msg.drive.steering_angle;
+    void drive_callback(const ackermann_msgs::AckermannDriveStampedConstPtr msg,
+                        size_t i) {
+        desired_speed_[i] = msg->drive.speed;
+        desired_accel_[i] = msg->drive.acceleration;
+        desired_steer_ang_[i] = msg->drive.steering_angle;
     }
 
     // button callbacks
@@ -554,8 +612,8 @@ class RacecarSimulator {
         }
         if (clear_obs_clicked) {
             ROS_INFO("Clearing obstacles.");
-            current_map = original_map;
-            map_pub.publish(current_map);
+            current_map_ = original_map_;
+            map_pub.publish(current_map_);
 
             clear_obs_clicked = false;
         }
@@ -593,13 +651,13 @@ class RacecarSimulator {
     /// ---------------------- PUBLISHING HELPER FUNCTIONS
     /// ----------------------
 
-    void pub_pose_transform(ros::Time timestamp) {
+    void pub_pose_transform(ros::Time timestamp, size_t i) {
         // Convert the pose into a transformation
         geometry_msgs::Transform t;
-        t.translation.x = state.x;
-        t.translation.y = state.y;
+        t.translation.x = state_[i].x;
+        t.translation.y = state_[i].y;
         tf2::Quaternion quat;
-        quat.setEuler(0., 0., state.theta);
+        quat.setEuler(0., 0., state_[i].theta);
         t.rotation.x = quat.x();
         t.rotation.y = quat.y();
         t.rotation.z = quat.z();
@@ -610,75 +668,73 @@ class RacecarSimulator {
         ts.transform = t;
         ts.header.stamp = timestamp;
         ts.header.frame_id = map_frame;
-        ts.child_frame_id = base_frame;
+        ts.child_frame_id = base_frame + std::to_string(i);
 
         // Publish them
         if (broadcast_transform) {
-            br.sendTransform(ts);
+            br_.sendTransform(ts);
         }
     }
 
-    void pub_steer_ang_transform(ros::Time timestamp) {
+    void pub_steer_ang_transform(ros::Time timestamp, size_t i) {
         // Set the steering angle to make the wheels move
         // Publish the steering angle
         tf2::Quaternion quat_wheel;
-        quat_wheel.setEuler(0., 0., state.steer_angle);
+        quat_wheel.setEuler(0., 0., state_[i].steer_angle);
         geometry_msgs::TransformStamped ts_wheel;
         ts_wheel.transform.rotation.x = quat_wheel.x();
         ts_wheel.transform.rotation.y = quat_wheel.y();
         ts_wheel.transform.rotation.z = quat_wheel.z();
         ts_wheel.transform.rotation.w = quat_wheel.w();
         ts_wheel.header.stamp = timestamp;
-        ts_wheel.header.frame_id = "front_left_hinge";
-        ts_wheel.child_frame_id = "front_left_wheel";
-        br.sendTransform(ts_wheel);
-        ts_wheel.header.frame_id = "front_right_hinge";
-        ts_wheel.child_frame_id = "front_right_wheel";
-        br.sendTransform(ts_wheel);
+        ts_wheel.header.frame_id = "front_left_hinge" + std::to_string(i);
+        ts_wheel.child_frame_id = "front_left_wheel" + std::to_string(i);
+        br_.sendTransform(ts_wheel);
+        ts_wheel.header.frame_id = "front_right_hinge" + std::to_string(i);
+        ts_wheel.child_frame_id = "front_right_wheel" + std::to_string(i);
+        br_.sendTransform(ts_wheel);
     }
 
-    void pub_laser_link_transform(ros::Time timestamp) {
+    void pub_laser_link_transform(ros::Time timestamp, size_t i) {
         // Publish a transformation between base link and laser
         geometry_msgs::TransformStamped scan_ts;
-        scan_ts.transform.translation.x = scan_distance_to_base_link;
+        scan_ts.transform.translation.x = scan_distance_to_base_link_;
         scan_ts.transform.rotation.w = 1;
         scan_ts.header.stamp = timestamp;
-        scan_ts.header.frame_id = base_frame;
-        scan_ts.child_frame_id = scan_frame;
-        br.sendTransform(scan_ts);
+        scan_ts.header.frame_id = base_frame + std::to_string(i);
+        scan_ts.child_frame_id = scan_frame + std::to_string(i);
+        br_.sendTransform(scan_ts);
     }
 
-    void pub_odom(ros::Time timestamp, int obj_num) {
+    void pub_odom(ros::Time timestamp, size_t i) {
 
-        for (size_t i = 0; i < obj_num; i++) {
-            // Make an odom message and publish it
-            nav_msgs::Odometry odom;
-            odom.header.stamp = timestamp;
-            odom.header.frame_id = map_frame;
-            odom.child_frame_id = base_frame;
-            odom.pose.pose.position.x = state.x;
-            odom.pose.pose.position.y = state.y;
-            tf2::Quaternion quat;
-            quat.setEuler(0., 0., state.theta);
-            odom.pose.pose.orientation.x = quat.x();
-            odom.pose.pose.orientation.y = quat.y();
-            odom.pose.pose.orientation.z = quat.z();
-            odom.pose.pose.orientation.w = quat.w();
-            odom.twist.twist.linear.x = state.velocity;
-            odom.twist.twist.angular.z = state.angular_velocity;
-        }
+        // Make an odom message and publish it
+        nav_msgs::Odometry odom;
+        odom.header.stamp = timestamp;
+        odom.header.frame_id = map_frame;
+        odom.child_frame_id = base_frame + std::to_string(i);
+        odom.pose.pose.position.x = state_[i].x;
+        odom.pose.pose.position.y = state_[i].y;
+        tf2::Quaternion quat;
+        quat.setEuler(0., 0., state_[i].theta);
+        odom.pose.pose.orientation.x = quat.x();
+        odom.pose.pose.orientation.y = quat.y();
+        odom.pose.pose.orientation.z = quat.z();
+        odom.pose.pose.orientation.w = quat.w();
+        odom.twist.twist.linear.x = state_[i].velocity;
+        odom.twist.twist.angular.z = state_[i].angular_velocity;
 
-        odom_pub.publish(odom);
+        odom_pub_[i].publish(odom);
     }
 
-    void pub_imu(ros::Time timestamp) {
+    void pub_imu(ros::Time timestamp, size_t i) {
         // Make an IMU message and publish it
         // TODO: make imu message
         sensor_msgs::Imu imu;
         imu.header.stamp = timestamp;
         imu.header.frame_id = map_frame;
 
-        imu_pub.publish(imu);
+        imu_pub_[i].publish(imu);
     }
 };
 

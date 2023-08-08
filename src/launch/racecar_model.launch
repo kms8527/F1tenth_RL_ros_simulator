@@ -5,7 +5,7 @@
   <!-- Open the model file -->
   <arg name="racecar_xacro" default="$(find racecar_simulator)/opp_racecar.xacro"/>
   <!--<param name="tf_prefix" value="racecar"/>-->
-  <param name="robot_description" command="xacro --inorder '$(arg racecar_xacro)'"/>
+  <param name="robot_description" command="xacro '$(arg racecar_xacro)'"/>
   <!-- Add the transformations -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
   </group>

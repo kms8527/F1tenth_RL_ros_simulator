@@ -1,3 +1,9 @@
+#obj_num
+obj_num: 2
+# obstacle parameters
+obstacle_size: 3
+
+
 # The distance between the front and
 # rear axle of the racecar
 wheelbase: 0.3302 # meters
@@ -82,8 +88,6 @@ new_key_char: "z"
 keyboard_speed: 1.8  # meters/second
 keyboard_steer_ang: .3  # radians
 
-# obstacle parameters
-obstacle_size: 3
 
 # The names of topics to listen and publish to
 joy_topic: "/joy"
