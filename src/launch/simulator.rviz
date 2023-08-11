@@ -6,6 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /RobotModel1
+        - /RobotModel2
       Splitter Ratio: 0.5
     Tree Height: 704
   - Class: rviz/Selection
@@ -25,7 +27,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -90,46 +92,46 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        back_left_wheel:
+        back_left_wheel0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        back_right_wheel:
+        back_right_wheel0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        base_link:
+        base_link0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        front_left_hinge:
+        front_left_hinge0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        front_left_wheel:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        front_right_hinge:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        front_right_wheel:
+        front_left_wheel0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        laser_model:
+        front_right_hinge0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_right_wheel0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        laser_model0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
       Name: RobotModel
-      Robot Description: /racecar/robot_description
+      Robot Description: /racecar0/robot_description
       TF Prefix: ""
       Update Interval: 0
       Value: true
@@ -234,6 +236,60 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        back_left_wheel1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        back_right_wheel1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_link1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_left_hinge1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_left_wheel1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_hinge1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_right_wheel1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        laser_model1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Name: RobotModel
+      Robot Description: /racecar1/robot_description
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -262,7 +318,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 13.114485740661621
+      Distance: 2.871894121170044
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -270,9 +326,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.6446888446807861
-        Y: -1.5208896398544312
-        Z: 0.0016493300208821893
+        X: 0.26362377405166626
+        Y: 0.06075534597039223
+        Z: 0.04482455924153328
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -280,7 +336,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 3.138577699661255
+      Yaw: 2.9585769176483154
     Saved: ~
 Window Geometry:
   Displays:
@@ -300,5 +356,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1374
-  X: 546
+  X: 529
   Y: 27

@@ -1,17 +1,17 @@
 #include <ros/ros.h>
 
-#include <ackermann_msgs/AckermannDriveStamped.h>
 #include <ackermann_msgs/AckermannDrive.h>
+#include <ackermann_msgs/AckermannDriveStamped.h>
+#include <sensor_msgs/Joy.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Header.h>
 #include <std_msgs/Int32MultiArray.h>
-#include <sensor_msgs/Joy.h>
 #include <std_msgs/String.h>
 
 #include "racecar_simulator/channel.h"
 
 class Mux {
-private:
+  private:
     // A ROS node
     ros::NodeHandle n;
 
@@ -21,6 +21,9 @@ private:
     // Listen for messages from joystick and keyboard
     ros::Subscriber joy_sub;
     ros::Subscriber key_sub;
+
+    // number of objects
+    int obj_num;
 
     // Publish drive data to simulator/car
     ros::Publisher drive_pub;
@@ -34,7 +37,7 @@ private:
     int mux_size;
 
     // Channel array
-    std::vector<Channel*> channels;
+    std::vector<Channel *> channels;
 
     // Make Channel class have access to these private variables
     friend class Channel;
@@ -46,12 +49,11 @@ private:
     int joy_speed_axis, joy_angle_axis;
     double max_speed, max_steering_angle;
     // For keyboard driving
-    double prev_key_velocity=0.0;
+    double prev_key_velocity = 0.0;
     double keyboard_speed;
     double keyboard_steer_ang;
 
-
-public:
+  public:
     Mux() {
         // Initialize the node handle
         n = ros::NodeHandle("~");
@@ -62,16 +64,18 @@ public:
         n.getParam("mux_topic", mux_topic);
         n.getParam("joy_topic", joy_topic);
         n.getParam("keyboard_topic", key_topic);
+        n.getParam("obj_num", obj_num);
 
         // Make a publisher for drive messages
-        drive_pub = n.advertise<ackermann_msgs::AckermannDriveStamped>(drive_topic, 10);
+        drive_pub =
+            n.advertise<ackermann_msgs::AckermannDriveStamped>(drive_topic, 10);
 
         // Start a subscriber to listen to mux messages
         mux_sub = n.subscribe(mux_topic, 1, &Mux::mux_callback, this);
 
         // Start subscribers to listen to joy and keyboard messages
-        joy_sub = n.subscribe(joy_topic, 1, &Mux::joy_callback, this);
-        key_sub = n.subscribe(key_topic, 1, &Mux::key_callback, this);
+        // joy_sub = n.subscribe(joy_topic, 1, &Mux::joy_callback, this);
+        // key_sub = n.subscribe(key_topic, 1, &Mux::key_callback, this);
 
         // get mux indices
         n.getParam("joy_mux_idx", joy_mux_idx);
@@ -98,8 +102,9 @@ public:
             prev_mux[i] = false;
         }
 
-        // A channel contains a subscriber to the given drive topic and a publisher to the main drive topic
-        channels = std::vector<Channel*>();
+        // A channel contains a subscriber to the given drive topic and a
+        // publisher to the main drive topic
+        channels = std::vector<Channel *>();
 
         /// Add new channels here:
         // Random driver example
@@ -121,7 +126,8 @@ public:
         std::string nav_drive_topic;
         n.getParam("nav_drive_topic", nav_drive_topic);
         n.getParam("nav_mux_idx", nav_mux_idx);
-        add_channel(nav_drive_topic, drive_topic, nav_mux_idx);
+        for (size_t i = 0; i < obj_num; i++)
+            add_channel(nav_drive_topic, drive_topic, nav_mux_idx, i);
 
         // ***Add a channel for a new planner here**
         // int new_mux_idx;
@@ -131,14 +137,23 @@ public:
         // add_channel(new_drive_topic, drive_topic, new_mux_idx);
     }
 
-    void add_channel(std::string channel_name, std::string drive_topic, int mux_idx_) {
-        Channel* new_channel = new Channel(channel_name, drive_topic, mux_idx_, this);
-        channels.push_back(new_channel);    
+    void add_channel(std::string channel_name, std::string drive_topic,
+                     int mux_idx_) {
+        Channel *new_channel =
+            new Channel(channel_name, drive_topic, mux_idx_, this);
+        channels.push_back(new_channel);
+    }
+
+    void add_channel(std::string channel_name, std::string drive_topic,
+                     int mux_idx_, int i) {
+        Channel *new_channel =
+            new Channel(channel_name, drive_topic, mux_idx_, this, i);
+        channels.push_back(new_channel);
     }
 
     void publish_to_drive(double desired_velocity, double desired_steer) {
-        // This will take in a desired velocity and steering angle and make and publish an 
-        // AckermannDriveStamped message to the /drive topic
+        // This will take in a desired velocity and steering angle and make and
+        // publish an AckermannDriveStamped message to the /drive topic
 
         // Make and publish message
         ackermann_msgs::AckermannDriveStamped drive_st_msg;
@@ -157,7 +172,7 @@ public:
         drive_pub.publish(drive_st_msg);
     }
 
-    void mux_callback(const std_msgs::Int32MultiArray & msg) {
+    void mux_callback(const std_msgs::Int32MultiArray &msg) {
         // reset mux member variable every time it's published
         for (int i = 0; i < mux_size; i++) {
             mux_controller[i] = bool(msg.data[i]);
@@ -185,78 +200,96 @@ public:
         }
     }
 
-    void joy_callback(const sensor_msgs::Joy & msg) {
-        // make drive message from joystick if turned on
-        if (mux_controller[joy_mux_idx]) {
-            // Calculate desired velocity and steering angle
-            double desired_velocity = max_speed * msg.axes[joy_speed_axis];
-            double desired_steer = max_steering_angle * msg.axes[joy_angle_axis];
+    // void joy_callback(const sensor_msgs::Joy &msg) {
+    //     // make drive message from joystick if turned on
+    //     if (mux_controller[joy_mux_idx]) {
+    //         // Calculate desired velocity and steering angle
+    //         double desired_velocity = max_speed * msg.axes[joy_speed_axis];
+    //         double desired_steer =
+    //             max_steering_angle * msg.axes[joy_angle_axis];
 
-            publish_to_drive(desired_velocity, desired_steer);
-        }
-    }
+    //         publish_to_drive(desired_velocity, desired_steer);
+    //     }
+    // }
 
-    void key_callback(const std_msgs::String & msg) {
-        // make drive message from keyboard if turned on 
-        if (mux_controller[key_mux_idx]) {
-            // Determine desired velocity and steering angle
-            double desired_velocity = 0.0;
-            double desired_steer = 0.0;
-            
-            bool publish = true;
+    // void key_callback(const std_msgs::String &msg) {
+    //     // make drive message from keyboard if turned on
+    //     if (mux_controller[key_mux_idx]) {
+    //         // Determine desired velocity and steering angle
+    //         double desired_velocity = 0.0;
+    //         double desired_steer = 0.0;
 
-            if (msg.data == "w") {
-                // Forward
-                desired_velocity = keyboard_speed; // a good speed for keyboard control
-            } else if (msg.data == "s") {
-                // Backwards
-                desired_velocity = -keyboard_speed;
-            } else if (msg.data == "a") {
-                // Steer left and keep speed
-                desired_steer = keyboard_steer_ang;
-                desired_velocity = prev_key_velocity;
-            } else if (msg.data == "d") {
-                // Steer right and keep speed
-                desired_steer = -keyboard_steer_ang;
-                desired_velocity = prev_key_velocity;
-            } else if (msg.data == " ") {
-                // publish zeros to slow down/straighten out car
-            } else {
-                // so that it doesn't constantly publish zeros when you press other keys
-                publish = false;
-            }
+    //         bool publish = true;
 
-            if (publish) {
-                publish_to_drive(desired_velocity, desired_steer);
-                prev_key_velocity = desired_velocity;
-            }
-        }
-    }
+    //         if (msg.data == "w") {
+    //             // Forward
+    //             desired_velocity =
+    //                 keyboard_speed; // a good speed for keyboard control
+    //         } else if (msg.data == "s") {
+    //             // Backwards
+    //             desired_velocity = -keyboard_speed;
+    //         } else if (msg.data == "a") {
+    //             // Steer left and keep speed
+    //             desired_steer = keyboard_steer_ang;
+    //             desired_velocity = prev_key_velocity;
+    //         } else if (msg.data == "d") {
+    //             // Steer right and keep speed
+    //             desired_steer = -keyboard_steer_ang;
+    //             desired_velocity = prev_key_velocity;
+    //         } else if (msg.data == " ") {
+    //             // publish zeros to slow down/straighten out car
+    //         } else {
+    //             // so that it doesn't constantly publish zeros when you press
+    //             // other keys
+    //             publish = false;
+    //         }
 
-
+    //         if (publish) {
+    //             publish_to_drive(desired_velocity, desired_steer);
+    //             prev_key_velocity = desired_velocity;
+    //         }
+    //     }
+    // }
 };
-
 
 /// Channel class method implementations
 
 Channel::Channel() {
     ROS_INFO("Channel intialized without proper information");
-    Channel("", "", -1, nullptr);
+    Channel("", "", -1, nullptr, -1);
 }
 
-Channel::Channel(std::string channel_name, std::string drive_topic, int mux_idx_, Mux* mux) 
-: mux_idx(mux_idx_), mp_mux(mux) {
-    drive_pub = mux->n.advertise<ackermann_msgs::AckermannDriveStamped>(drive_topic, 10);
-    channel_sub = mux->n.subscribe(channel_name, 1, &Channel::drive_callback, this);
+Channel::Channel(std::string channel_name, std::string drive_topic,
+                 int mux_idx_, Mux *mux, int i)
+    : mux_idx(mux_idx_), mp_mux(mux) {
+    if (mux_idx == 4) {
+        drive_pub = mux->n.advertise<ackermann_msgs::AckermannDriveStamped>(
+            drive_topic + std::to_string(i), 10);
+    } else
+        drive_pub = mux->n.advertise<ackermann_msgs::AckermannDriveStamped>(
+            drive_topic, 10);
+
+    channel_sub =
+        mux->n.subscribe(channel_name+std::to_string(i), 1, &Channel::drive_callback, this);
 }
 
-void Channel::drive_callback(const ackermann_msgs::AckermannDriveStamped & msg) {
+Channel::Channel(std::string channel_name, std::string drive_topic,
+                 int mux_idx_, Mux *mux)
+    : mux_idx(mux_idx_), mp_mux(mux) {
+
+    drive_pub = mux->n.advertise<ackermann_msgs::AckermannDriveStamped>(
+        drive_topic, 10);
+    channel_sub =
+        mux->n.subscribe(channel_name, 1, &Channel::drive_callback, this);
+}
+
+void Channel::drive_callback(const ackermann_msgs::AckermannDriveStamped &msg) {
     if (mp_mux->mux_controller[this->mux_idx]) {
         drive_pub.publish(msg);
     }
 }
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
     ros::init(argc, argv, "mux_controller");
     Mux mx;
     ros::spin();

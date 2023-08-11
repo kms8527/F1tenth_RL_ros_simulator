@@ -182,9 +182,9 @@ class RacecarSimulator {
 
         // Initialize car state and driving commands
         for (int i = 0; i < obj_num_; i++) {
-            CarState state = {.x = 0,
-                              .y = 0,
-                              .theta = 0,
+            CarState state = {.x = i,
+                              .y = i,
+                              .theta = i,
                               .velocity = 0,
                               .steer_angle = 0.0,
                               .angular_velocity = 0.0,
@@ -596,8 +596,9 @@ class RacecarSimulator {
         // pose_callback(&temp_pose, i);
     }
 
-    void drive_callback(const ackermann_msgs::AckermannDriveStampedConstPtr msg,
+    void drive_callback(const ackermann_msgs::AckermannDriveStampedConstPtr &msg,
                         size_t i) {
+        std::cout<<"received drive command \n";
         desired_speed_[i] = msg->drive.speed;
         desired_accel_[i] = msg->drive.acceleration;
         desired_steer_ang_[i] = msg->drive.steering_angle;

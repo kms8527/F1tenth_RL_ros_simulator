@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <!-- Listen to messages from joysicks -->
-  <node pkg="joy" name="joy_node" type="joy_node"/>
+  <!--node pkg="joy" name="joy_node" type="joy_node"/-->
 
   <!-- Launch a map from the maps folder-->
   <arg name="map" default="$(find racecar_simulator)/maps/levinelobby_track.yaml"/>
@@ -31,9 +31,9 @@
   </node>
 
   <!-- Launch the Keyboard Node -->
-  <node pkg="racecar_simulator" name="keyboard" type="keyboard" output="screen">
+  <!-- <node pkg="racecar_simulator" name="keyboard" type="keyboard" output="screen">
     <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
-  </node>
+  </node> -->
 
   <!-- ***Put launch command for new planner here:-->
   <!-- Launch the New Planner Node -->

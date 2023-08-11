@@ -27,6 +27,8 @@ public:
 
     Channel(std::string channel_name, std::string drive_topic, int mux_idx_, Mux* mux);
 
+    Channel(std::string channel_name, std::string drive_topic, int mux_idx_, Mux* mux, int i);
+
     void drive_callback(const ackermann_msgs::AckermannDriveStamped & msg);
 };
 
