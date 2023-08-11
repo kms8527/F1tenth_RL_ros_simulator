@@ -108,14 +108,14 @@ class BehaviorController {
         // messages
         laser_sub = n.subscribe(scan_topic, 1,
                                 &BehaviorController::laser_callback, this);
-        joy_sub =
-            n.subscribe(joy_topic, 1, &BehaviorController::joy_callback, this);
+        // joy_sub =
+        //     n.subscribe(joy_topic, 1, &BehaviorController::joy_callback, this);
         imu_sub =
             n.subscribe(imu_topic, 1, &BehaviorController::imu_callback, this);
         odom_sub = n.subscribe(odom_topic, 1,
                                &BehaviorController::odom_callback, this);
-        key_sub = n.subscribe(keyboard_topic, 1,
-                              &BehaviorController::key_callback, this);
+        // key_sub = n.subscribe(keyboard_topic, 1,
+        //                       &BehaviorController::key_callback, this);
         brake_bool_sub = n.subscribe(brake_bool_topic, 1,
                                      &BehaviorController::brake_callback, this);
 

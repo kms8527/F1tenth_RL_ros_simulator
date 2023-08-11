@@ -71,7 +71,7 @@ class Mux {
             n.advertise<ackermann_msgs::AckermannDriveStamped>(drive_topic, 10);
 
         // Start a subscriber to listen to mux messages
-        mux_sub = n.subscribe(mux_topic, 1, &Mux::mux_callback, this);
+        // mux_sub = n.subscribe(mux_topic, 1, &Mux::mux_callback, this);
 
         // Start subscribers to listen to joy and keyboard messages
         // joy_sub = n.subscribe(joy_topic, 1, &Mux::joy_callback, this);
@@ -108,18 +108,18 @@ class Mux {
 
         /// Add new channels here:
         // Random driver example
-        int random_walker_mux_idx;
-        std::string rand_drive_topic;
-        n.getParam("rand_drive_topic", rand_drive_topic);
-        n.getParam("random_walker_mux_idx", random_walker_mux_idx);
-        add_channel(rand_drive_topic, drive_topic, random_walker_mux_idx);
+        // int random_walker_mux_idx;
+        // std::string rand_drive_topic;
+        // n.getParam("rand_drive_topic", rand_drive_topic);
+        // n.getParam("random_walker_mux_idx", random_walker_mux_idx);
+        // add_channel(rand_drive_topic, drive_topic, random_walker_mux_idx);
 
         // Channel for emergency braking
-        int brake_mux_idx;
-        std::string brake_drive_topic;
-        n.getParam("brake_drive_topic", brake_drive_topic);
-        n.getParam("brake_mux_idx", brake_mux_idx);
-        add_channel(brake_drive_topic, drive_topic, brake_mux_idx);
+        // int brake_mux_idx;
+        // std::string brake_drive_topic;
+        // n.getParam("brake_drive_topic", brake_drive_topic);
+        // n.getParam("brake_mux_idx", brake_mux_idx);
+        // add_channel(brake_drive_topic, drive_topic, brake_mux_idx);
 
         // General navigation channel
         int nav_mux_idx;
@@ -172,33 +172,33 @@ class Mux {
         drive_pub.publish(drive_st_msg);
     }
 
-    void mux_callback(const std_msgs::Int32MultiArray &msg) {
-        // reset mux member variable every time it's published
-        for (int i = 0; i < mux_size; i++) {
-            mux_controller[i] = bool(msg.data[i]);
-        }
+    // void mux_callback(const std_msgs::Int32MultiArray &msg) {
+    //     // reset mux member variable every time it's published
+    //     for (int i = 0; i < mux_size; i++) {
+    //         mux_controller[i] = bool(msg.data[i]);
+    //     }
 
-        // Prints the mux whenever it is changed
-        bool changed = false;
-        // checks if nothing is on
-        bool anything_on = false;
-        for (int i = 0; i < mux_size; i++) {
-            changed = changed || (mux_controller[i] != prev_mux[i]);
-            anything_on = anything_on || mux_controller[i];
-        }
-        if (changed) {
-            std::cout << "MUX: " << std::endl;
-            for (int i = 0; i < mux_size; i++) {
-                std::cout << mux_controller[i] << std::endl;
-                prev_mux[i] = mux_controller[i];
-            }
-            std::cout << std::endl;
-        }
-        if (!anything_on) {
-            // if no mux channel is active, halt the car
-            publish_to_drive(0.0, 0.0);
-        }
-    }
+    //     // Prints the mux whenever it is changed
+    //     bool changed = false;
+    //     // checks if nothing is on
+    //     bool anything_on = false;
+    //     for (int i = 0; i < mux_size; i++) {
+    //         changed = changed || (mux_controller[i] != prev_mux[i]);
+    //         anything_on = anything_on || mux_controller[i];
+    //     }
+    //     if (changed) {
+    //         std::cout << "MUX: " << std::endl;
+    //         for (int i = 0; i < mux_size; i++) {
+    //             std::cout << mux_controller[i] << std::endl;
+    //             prev_mux[i] = mux_controller[i];
+    //         }
+    //         std::cout << std::endl;
+    //     }
+    //     if (!anything_on) {
+    //         // if no mux channel is active, halt the car
+    //         publish_to_drive(0.0, 0.0);
+    //     }
+    // }
 
     // void joy_callback(const sensor_msgs::Joy &msg) {
     //     // make drive message from joystick if turned on
@@ -268,6 +268,8 @@ Channel::Channel(std::string channel_name, std::string drive_topic,
     } else
         drive_pub = mux->n.advertise<ackermann_msgs::AckermannDriveStamped>(
             drive_topic, 10);
+    // drive_pub = mux->n.advertise<ackermann_msgs::AckermannDriveStamped>(
+            // drive_topic + std::to_string(i), 10);
 
     channel_sub =
         mux->n.subscribe(channel_name+std::to_string(i), 1, &Channel::drive_callback, this);
@@ -284,9 +286,10 @@ Channel::Channel(std::string channel_name, std::string drive_topic,
 }
 
 void Channel::drive_callback(const ackermann_msgs::AckermannDriveStamped &msg) {
-    if (mp_mux->mux_controller[this->mux_idx]) {
-        drive_pub.publish(msg);
-    }
+    // if (mp_mux->mux_controller[this->mux_idx]) {
+    //     drive_pub.publish(msg);
+    // }
+    drive_pub.publish(msg);
 }
 
 int main(int argc, char **argv) {

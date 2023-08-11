@@ -80,7 +80,8 @@ class RacecarSimulator {
 
     // Listen for updates to the pose
     std::vector<ros::Subscriber> pose_sub_;
-    std::vector<ros::Subscriber> pose_rviz_sub_;
+    ros::Subscriber pose_rviz_sub_;
+    ros::Subscriber opp_pose_rviz_sub_;
 
     // Publish a scan, odometry, and imu data
     bool broadcast_transform;
@@ -131,13 +132,14 @@ class RacecarSimulator {
 
         // Get the topic names
         std::string drive_topic, map_topic, scan_topic, pose_topic,
-            pose_rviz_topic, odom_topic, imu_topic;
+            pose_rviz_topic, opp_pose_rviz_topic, odom_topic, imu_topic;
         n.getParam("drive_topic", drive_topic);
         n.getParam("map_topic", map_topic);
         n.getParam("scan_topic", scan_topic);
         n.getParam("pose_topic", pose_topic);
         n.getParam("odom_topic", odom_topic);
         n.getParam("pose_rviz_topic", pose_rviz_topic);
+        n.getParam("opp_pose_rviz_topic", opp_pose_rviz_topic);
         n.getParam("imu_topic", imu_topic);
 
         // Get the transformation frame names
@@ -184,7 +186,7 @@ class RacecarSimulator {
         for (int i = 0; i < obj_num_; i++) {
             CarState state = {.x = i,
                               .y = i,
-                              .theta = i,
+                              .theta = 0,
                               .velocity = 0,
                               .steer_angle = 0.0,
                               .angular_velocity = 0.0,
@@ -210,9 +212,13 @@ class RacecarSimulator {
         update_pose_timer = n.createTimer(ros::Duration(update_pose_rate),
                                           &RacecarSimulator::update_pose, this);
 
+        // pose_rviz_sub_ = n.subscribe<geometry_msgs::PoseWithCovarianceStamped>(pose_rviz_topic, 1, &RacecarSimulator::pose_rviz_callback, this);
+        pose_rviz_sub_ = n.subscribe(pose_rviz_topic, 1, &RacecarSimulator::pose_rviz_callback, this);
+        opp_pose_rviz_sub_ = n.subscribe(opp_pose_rviz_topic, 1, &RacecarSimulator::opp_pose_rviz_callback, this);
+
         // Start a subscriber to listen to drive commands
         for (int i = 0; i < obj_num_; i++) {
-            ros::Subscriber drive_sub, pose_sub, pose_rviz_sub;
+            ros::Subscriber drive_sub, pose_sub;
             ros::Publisher scan_pub, odom_pub, imu_pub;
 
             drive_sub = n.subscribe<ackermann_msgs::AckermannDriveStamped>(
@@ -221,11 +227,7 @@ class RacecarSimulator {
             pose_sub = n.subscribe<geometry_msgs::PoseStamped>(
                 pose_topic + std::to_string(i), 1,
                 boost::bind(&RacecarSimulator::pose_callback, this, _1, i));
-            pose_rviz_sub =
-                n.subscribe<geometry_msgs::PoseWithCovarianceStamped>(
-                    pose_rviz_topic + std::to_string(i), 1,
-                    boost::bind(&RacecarSimulator::pose_rviz_callback, this, _1,
-                                i));
+            
 
             // Make a publisher for laser scan messages
             scan_pub = n.advertise<sensor_msgs::LaserScan>(
@@ -346,8 +348,8 @@ class RacecarSimulator {
         // simulate P controller
         for (int i = 0; i < obj_num_; i++) {
             // compute_accel(desired_speed);
-            set_accel(desired_accel_[i]);
-            set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i));
+            set_accel(desired_accel_[i], i);
+            set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i],i),i);
 
             // Update the pose
             ros::Time timestamp = ros::Time::now();
@@ -408,9 +410,9 @@ class RacecarSimulator {
                                      proj_velocity; // ???
                         // if it's small enough to count as a collision
                         if ((ttc < ttc_threshold) && (ttc >= 0.0)) {
-                            if (!TTC) {
-                                first_ttc_actions();
-                            }
+                            // if (!TTC) {
+                            //     first_ttc_actions();
+                            // }
 
                             no_collision = false;
                             TTC = true;
@@ -482,12 +484,12 @@ class RacecarSimulator {
         // completely stop vehicle
     }
 
-    void set_accel(double accel) {
-        accel = std::min(std::max(accel, -max_accel_), max_accel_);
+    void set_accel(double accel, int i) {
+        accel_[i] = std::min(std::max(accel, -max_accel_), max_accel_);
     }
 
-    void set_steer_angle_vel(double steer_angle_vel) {
-        steer_angle_vel = std::min(
+    void set_steer_angle_vel(double steer_angle_vel, int i) {
+        steer_angle_vel_[i] = std::min(
             std::max(steer_angle_vel, -max_steering_vel_), max_steering_vel_);
     }
 
@@ -532,31 +534,31 @@ class RacecarSimulator {
         return steer_vel;
     }
 
-    void compute_accel(double desired_velocity, size_t i) {
-        // get difference between current and desired
-        double dif = (desired_velocity - state_[i].velocity);
+    // void compute_accel(double desired_velocity, size_t i) {
+    //     // get difference between current and desired
+    //     double dif = (desired_velocity - state_[i].velocity);
 
-        if (state_[i].velocity > 0) {
-            if (dif > 0) {
-                // accelerate
-                double kp = 2.0 * max_accel_ / max_speed_;
-                set_accel(kp * dif);
-            } else {
-                // brake
-                accel_[i] = -max_decel_;
-            }
-        } else {
-            if (dif > 0) {
-                // brake
-                accel_[i] = max_decel_;
+    //     if (state_[i].velocity > 0) {
+    //         if (dif > 0) {
+    //             // accelerate
+    //             double kp = 2.0 * max_accel_ / max_speed_;
+    //             set_accel(kp * dif);
+    //         } else {
+    //             // brake
+    //             accel_[i] = -max_decel_;
+    //         }
+    //     } else {
+    //         if (dif > 0) {
+    //             // brake
+    //             accel_[i] = max_decel_;
 
-            } else {
-                // accelerate
-                double kp = 2.0 * max_accel_ / max_speed_;
-                set_accel(kp * dif);
-            }
-        }
-    }
+    //         } else {
+    //             // accelerate
+    //             double kp = 2.0 * max_accel_ / max_speed_;
+    //             set_accel(kp * dif);
+    //         }
+    //     }
+    // }
 
     /// ---------------------- CALLBACK FUNCTIONS ----------------------
 
@@ -586,15 +588,26 @@ class RacecarSimulator {
     }
 
     void pose_rviz_callback(
-        const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg, size_t i) {
+        const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg) {
         geometry_msgs::PoseStamped temp_pose;
         temp_pose.header = msg->header;
         temp_pose.pose = msg->pose.pose;
         boost::shared_ptr<geometry_msgs::PoseStamped> shared_pose(
             &temp_pose, [](geometry_msgs::PoseStamped *) {});
-        pose_callback(shared_pose, i);
+        pose_callback(shared_pose, 0);
         // pose_callback(&temp_pose, i);
     }
+
+    void opp_pose_rviz_callback(const geometry_msgs::PoseStampedConstPtr &msg) {
+        geometry_msgs::PoseStamped temp_pose;
+        temp_pose.header = msg->header;
+        temp_pose.pose = msg->pose;
+        boost::shared_ptr<geometry_msgs::PoseStamped> shared_pose(
+            &temp_pose, [](geometry_msgs::PoseStamped *) {});
+        pose_callback(shared_pose, 1);
+        // pose_callback(&temp_pose, i);
+    }
+
 
     void drive_callback(const ackermann_msgs::AckermannDriveStampedConstPtr &msg,
                         size_t i) {
