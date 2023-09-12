@@ -1,5 +1,6 @@
 # F1tenth_RL_ros_simulator
 
+this simulator is made for my Reinforcement learning Project.
 this code can spawn multiple vehicles.
 
 1'th vehicle drive topic : drive topic name + "0"
