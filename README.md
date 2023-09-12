@@ -23,7 +23,7 @@ you can set initial pose of 1'th vehicle with "2D Pose Estimate"
 
 you can set initial pose of 2'th vehicle with "2D Nav Goal"
 
+https://github.com/kms8527/F1tenth_RL_ros_simulator/assets/44738230/4d821686-e0af-46bb-9e2e-3dd8d9a6bc88
 
 
-https://github.com/kms8527/F1tenth_RL_ros_simulator/assets/44738230/db6e8faf-be58-4f39-9f4b-37669f25c736
 
