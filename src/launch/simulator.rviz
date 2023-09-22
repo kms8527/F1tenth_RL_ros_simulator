@@ -7,6 +7,9 @@ Panels:
         - /Global Options1
         - /Status1
         - /RobotModel1
+        - /MarkerArray2
+        - /RobotModel3
+        - /RobotModel3/Links1
       Splitter Ratio: 0.5
     Tree Height: 704
   - Class: rviz/Selection
@@ -291,7 +294,7 @@ Visualization Manager:
       Visual Enabled: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /opp/LMPC
+      Marker Topic: /ref_points0
       Name: MarkerArray
       Namespaces:
         {}
@@ -299,12 +302,82 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /ego/LMPC
+      Marker Topic: /ref_points1
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /LMPC0
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /LMPC1
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        back_left_wheel2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        back_right_wheel2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_link2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_left_hinge2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_left_wheel2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_hinge2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_right_wheel2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        laser_model2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Name: RobotModel
+      Robot Description: /racecar2/robot_description
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -333,7 +406,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.023890018463135
+      Distance: 14.462270736694336
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -341,9 +414,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.3849107325077057
-        Y: -1.7562274932861328
-        Z: 0.04527450352907181
+        X: 2.236300230026245
+        Y: -3.0121915340423584
+        Z: 0.04732358083128929
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -371,5 +444,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1374
-  X: 529
+  X: 2252
   Y: 27

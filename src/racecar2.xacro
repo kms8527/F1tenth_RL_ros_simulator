@@ -20,8 +20,8 @@
     <color rgba="0.2 0.2 0.2 1."/>
   </material>
 
-  <material name="red">
-    <color rgba="1.0 0.0 0.0 1."/>
+  <material name="green">
+    <color rgba="0.0 1.0 0.0 1.0"/>
   </material>
 
   <link name="base_link$(arg prefix)">
@@ -30,7 +30,7 @@
       <geometry>
         <box size="${wheelbase} ${width} ${height}"/>
       </geometry>
-      <material name="red"/>
+      <material name="green"/>
     </visual>
   </link>
 

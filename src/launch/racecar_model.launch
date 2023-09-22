@@ -14,6 +14,12 @@
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
   </group>
 
+  <!-- Group for racecar1 -->
+  <group ns="racecar2">
+    <arg name="racecar_xacro" default="$(find racecar_simulator)/racecar2.xacro"/>
+    <param name="robot_description" command="xacro '$(arg racecar_xacro)' prefix:=2"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  </group>
   <!-- Repeat similar groups for other racecars as needed -->
 
 </launch>

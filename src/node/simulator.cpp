@@ -29,9 +29,51 @@
 #include <iostream>
 #include <math.h>
 
+#include <fstream>
 #include <functional>
 
 using namespace racecar_simulator;
+
+
+std::vector<geometry_msgs::PointStamped>
+sampleWithoutReplacement(const std::vector<geometry_msgs::PointStamped> &data,
+                         int N) {
+    if (N > data.size()) {
+        throw std::runtime_error("N is greater than the size of the vector.");
+    }
+
+    std::vector<geometry_msgs::PointStamped> shuffledData =
+        data; // 원본 데이터 복사
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(shuffledData.begin(), shuffledData.end(), g); // 데이터 섞기
+
+    return std::vector<geometry_msgs::PointStamped>(
+        shuffledData.begin(),
+        shuffledData.begin() + N); // 앞에서부터 N개의 원소 선택
+}
+
+void computeYaw(std::vector<geometry_msgs::PointStamped> &global_path) {
+
+    for (size_t i = 0; i < global_path.size(); ++i) {
+        // 다음 점을 가져옵니다. 마지막 점의 경우 첫 번째 점을 다음 점으로
+        // 사용합니다.
+        const geometry_msgs::Point &current = global_path[i].point;
+        const geometry_msgs::Point &next = (i == global_path.size() - 1)
+                                               ? global_path[0].point
+                                               : global_path[i + 1].point;
+
+        // 두 점 사이의 방향을 계산합니다.
+        double dx = next.x - current.x;
+        double dy = next.y - current.y;
+
+        // atan2를 사용하여 yaw 값을 계산합니다.
+        double yaw = atan2(dy, dx);
+
+        global_path[i].point.z = yaw;
+    }
+}
+
 
 class RacecarSimulator {
   private:
@@ -121,6 +163,9 @@ class RacecarSimulator {
     bool TTC = false;
     double ttc_threshold;
 
+    bool random_pose_;
+    std::vector<geometry_msgs::PointStamped> global_path_;
+
   public:
     RacecarSimulator() : im_server("racecar_sim") {
         // Initialize the node handle
@@ -181,19 +226,71 @@ class RacecarSimulator {
 
         // Get obstacle size parameter
         n.getParam("obstacle_size", obstacle_size);
+        n.getParam("random_pose", random_pose_);
+
+        std::vector<geometry_msgs::PointStamped> random_pose_array;
+        if (random_pose_) {
+            std::ifstream read_file;
+            std::string waypoint_file;
+            n.getParam("waypoint_file", waypoint_file);
+            read_file.open(waypoint_file.c_str());
+
+            if (read_file.is_open()) {
+                while (!read_file.eof()) {
+                    std::string line;
+                    geometry_msgs::PointStamped pos;
+
+                    std::string buffer;
+                    std::vector<std::string> res;
+
+                    getline(read_file, line);
+                    if (line.empty()) {
+                        continue;
+                    }
+
+                    std::istringstream iss(line);
+
+                    while (getline(iss, buffer, ',')) {
+                        res.push_back(buffer);
+                    }
+
+                    pos.point.x = std::stof(res[0]);
+                    pos.point.y = std::stof(res[1]);
+
+                    global_path_.push_back(pos);
+                }
+            }
+            computeYaw(global_path_);
+            std::cout << "waypoint size for random pose :"
+                      << global_path_.size() << std::endl;
+            random_pose_array =
+                sampleWithoutReplacement(global_path_, obj_num_);
+        }
 
         // Initialize car state and driving commands
         for (int i = 0; i < obj_num_; i++) {
-            CarState state = {.x = i,
-                              .y = i,
-                              .theta = 0,
-                              .velocity = 0,
-                              .steer_angle = 0.0,
-                              .angular_velocity = 0.0,
-                              .slip_angle = 0.0,
-                              .st_dyn = false};
+            if (random_pose_) {
+                CarState state = {.x = random_pose_array[i].point.x,
+                                  .y = random_pose_array[i].point.y,
+                                  .theta = random_pose_array[i].point.z,
+                                  .velocity = 0,
+                                  .steer_angle = 0.0,
+                                  .angular_velocity = 0.0,
+                                  .slip_angle = 0.0,
+                                  .st_dyn = false};
+                state_.push_back(state);
 
-            state_.push_back(state);
+            } else {
+                CarState state = {.x = i,
+                                  .y = i,
+                                  .theta = 0,
+                                  .velocity = 0,
+                                  .steer_angle = 0.0,
+                                  .angular_velocity = 0.0,
+                                  .slip_angle = 0.0,
+                                  .st_dyn = false};
+                state_.push_back(state);
+            }
 
             accel_.push_back(0.0);
             steer_angle_vel_.push_back(0.0);
@@ -212,9 +309,14 @@ class RacecarSimulator {
         update_pose_timer = n.createTimer(ros::Duration(update_pose_rate),
                                           &RacecarSimulator::update_pose, this);
 
-        // pose_rviz_sub_ = n.subscribe<geometry_msgs::PoseWithCovarianceStamped>(pose_rviz_topic, 1, &RacecarSimulator::pose_rviz_callback, this);
-        pose_rviz_sub_ = n.subscribe(pose_rviz_topic, 1, &RacecarSimulator::pose_rviz_callback, this);
-        opp_pose_rviz_sub_ = n.subscribe(opp_pose_rviz_topic, 1, &RacecarSimulator::opp_pose_rviz_callback, this);
+        // pose_rviz_sub_ =
+        // n.subscribe<geometry_msgs::PoseWithCovarianceStamped>(pose_rviz_topic,
+        // 1, &RacecarSimulator::pose_rviz_callback, this);
+        pose_rviz_sub_ = n.subscribe(
+            pose_rviz_topic, 1, &RacecarSimulator::pose_rviz_callback, this);
+        opp_pose_rviz_sub_ =
+            n.subscribe(opp_pose_rviz_topic, 1,
+                        &RacecarSimulator::opp_pose_rviz_callback, this);
 
         // Start a subscriber to listen to drive commands
         for (int i = 0; i < obj_num_; i++) {
@@ -227,7 +329,6 @@ class RacecarSimulator {
             pose_sub = n.subscribe<geometry_msgs::PoseStamped>(
                 pose_topic + std::to_string(i), 1,
                 boost::bind(&RacecarSimulator::pose_callback, this, _1, i));
-            
 
             // Make a publisher for laser scan messages
             scan_pub = n.advertise<sensor_msgs::LaserScan>(
@@ -349,7 +450,7 @@ class RacecarSimulator {
         for (int i = 0; i < obj_num_; i++) {
             // compute_accel(desired_speed);
             set_accel(desired_accel_[i], i);
-            set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i],i),i);
+            set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i), i);
 
             // Update the pose
             ros::Time timestamp = ros::Time::now();
@@ -394,8 +495,8 @@ class RacecarSimulator {
 
                 // Convert to float
                 std::vector<float> scan_float(scan.size());
-                for (size_t i = 0; i < scan.size(); i++)
-                    scan_float[i] = scan[i];
+                for (size_t idx = 0; idx < scan.size(); idx++)
+                    scan_float[idx] = scan[idx];
 
                 // TTC Calculations are done here so the car can be halted in
                 // the simulator: to reset TTC
@@ -427,8 +528,7 @@ class RacecarSimulator {
                     TTC = false;
 
                 // Publish the laser message
-                for (int i = 0; i < obj_num_; i++) {
-                    sensor_msgs::LaserScan scan_msg;
+                sensor_msgs::LaserScan scan_msg;
                     scan_msg.header.stamp = timestamp;
                     scan_msg.header.frame_id = scan_frame + std::to_string(i);
                     scan_msg.angle_min =
@@ -441,7 +541,6 @@ class RacecarSimulator {
                     scan_msg.ranges = scan_float;
                     scan_msg.intensities = scan_float;
                     scan_pub_[i].publish(scan_msg);
-                }
 
                 // Publish a transformation between base link and laser
                 pub_laser_link_transform(timestamp, i);
@@ -561,7 +660,9 @@ class RacecarSimulator {
     // }
 
     /// ---------------------- CALLBACK FUNCTIONS ----------------------
-
+    /**
+     * rviz clicked point callback
+    */
     void obs_callback(const geometry_msgs::PointStamped &msg) {
         double x = msg.point.x;
         double y = msg.point.y;
@@ -595,6 +696,7 @@ class RacecarSimulator {
         boost::shared_ptr<geometry_msgs::PoseStamped> shared_pose(
             &temp_pose, [](geometry_msgs::PoseStamped *) {});
         pose_callback(shared_pose, 0);
+        state_[0].velocity = 0.0;
         // pose_callback(&temp_pose, i);
     }
 
@@ -605,13 +707,15 @@ class RacecarSimulator {
         boost::shared_ptr<geometry_msgs::PoseStamped> shared_pose(
             &temp_pose, [](geometry_msgs::PoseStamped *) {});
         pose_callback(shared_pose, 1);
+        state_[1].velocity = 0.0;
+
         // pose_callback(&temp_pose, i);
     }
 
-
-    void drive_callback(const ackermann_msgs::AckermannDriveStampedConstPtr &msg,
-                        size_t i) {
-        std::cout<<"received drive command \n";
+    void
+    drive_callback(const ackermann_msgs::AckermannDriveStampedConstPtr &msg,
+                   size_t i) {
+        std::cout << "received drive command \n";
         desired_speed_[i] = msg->drive.speed;
         desired_accel_[i] = msg->drive.acceleration;
         desired_steer_ang_[i] = msg->drive.steering_angle;
@@ -751,6 +855,7 @@ class RacecarSimulator {
         imu_pub_[i].publish(imu);
     }
 };
+
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "racecar_simulator");

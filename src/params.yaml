@@ -1,5 +1,5 @@
 #obj_num
-obj_num: 2
+obj_num: 3
 # obstacle parameters
 obstacle_size: 3
 
@@ -11,9 +11,9 @@ wheelbase: 0.3302 # meters
 width: 0.2032 # meters
 
 # Limits on the speed and steering angle
-max_speed: 4. #  meters/second
+max_speed: 10. #  meters/second
 max_steering_angle: 0.4189 # radians
-max_accel: 3. # meters/second^2
+max_accel: 8. # meters/second^2
 max_decel: 20 # meters/second^2
 max_steering_vel: 5.0 # radians/second
 friction_coeff: 1. # - (complete estimate)
@@ -121,3 +121,6 @@ scan_frame: "laser"
 
 # Turn this off for mapping
 broadcast_transform: true
+# init pose
+random_pose: true
+waypoint_file: "/home/a/learningmpc/src/MPCcontroller/data/centerline_waypoints.csv"
