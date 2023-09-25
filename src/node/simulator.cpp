@@ -34,7 +34,6 @@
 
 using namespace racecar_simulator;
 
-
 std::vector<geometry_msgs::PointStamped>
 sampleWithoutReplacement(const std::vector<geometry_msgs::PointStamped> &data,
                          int N) {
@@ -73,7 +72,6 @@ void computeYaw(std::vector<geometry_msgs::PointStamped> &global_path) {
         global_path[i].point.z = yaw;
     }
 }
-
 
 class RacecarSimulator {
   private:
@@ -165,6 +163,7 @@ class RacecarSimulator {
 
     bool random_pose_;
     std::vector<geometry_msgs::PointStamped> global_path_;
+    std::string control_mode_;
 
   public:
     RacecarSimulator() : im_server("racecar_sim") {
@@ -227,6 +226,7 @@ class RacecarSimulator {
         // Get obstacle size parameter
         n.getParam("obstacle_size", obstacle_size);
         n.getParam("random_pose", random_pose_);
+        n.getParam("control_mode", control_mode_);
 
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         if (random_pose_) {
@@ -363,7 +363,8 @@ class RacecarSimulator {
         n.getParam("ttc_threshold", ttc_threshold);
 
         scan_ang_incr = scan_simulator.get_angle_increment();
-
+        // TODO : if the vehicle model of multiple vehicles is different,
+        //        the following code should be modified.
         cosines =
             Precompute::get_cosines(scan_beams, -scan_fov / 2.0, scan_ang_incr);
         car_distances = Precompute::get_car_distances(
@@ -444,12 +445,29 @@ class RacecarSimulator {
         imu_pub_.clear();
     }
 
+    double compute_accel(double desired_velocity, int i) {
+        // get difference between current and desired
+        double dif = (desired_velocity - state_[i].velocity);
+
+        double kp = 2.0 * max_accel_ / max_speed_;
+
+        // calculate acceleration
+        double acceleration = kp * dif;
+
+        return acceleration;
+    }
+
     void update_pose(const ros::TimerEvent &) {
 
         // simulate P controller
         for (int i = 0; i < obj_num_; i++) {
-            // compute_accel(desired_speed);
-            set_accel(desired_accel_[i], i);
+            if (control_mode_ == "v") {
+                double accel = compute_accel(desired_speed_[i], i);
+                set_accel(desired_accel_[i], i);
+            } else if (control_mode_ == "a")
+                set_accel(desired_accel_[i], i);
+            else
+                ROS_INFO("control mode error");
             set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i), i);
 
             // Update the pose
@@ -502,12 +520,13 @@ class RacecarSimulator {
                 // the simulator: to reset TTC
                 bool no_collision = true;
                 if (state_[i].velocity != 0) {
-                    for (size_t i = 0; i < scan_float.size(); i++) {
+                    for (size_t idx = 0; idx < scan_float.size(); idx++) {
                         // TTC calculations
 
                         // calculate projected velocity
-                        double proj_velocity = state_[i].velocity * cosines[i];
-                        double ttc = (scan_float[i] - car_distances[i]) /
+                        double proj_velocity =
+                            state_[i].velocity * cosines[idx];
+                        double ttc = (scan_float[idx] - car_distances[idx]) /
                                      proj_velocity; // ???
                         // if it's small enough to count as a collision
                         if ((ttc < ttc_threshold) && (ttc >= 0.0)) {
@@ -529,18 +548,15 @@ class RacecarSimulator {
 
                 // Publish the laser message
                 sensor_msgs::LaserScan scan_msg;
-                    scan_msg.header.stamp = timestamp;
-                    scan_msg.header.frame_id = scan_frame + std::to_string(i);
-                    scan_msg.angle_min =
-                        -scan_simulator.get_field_of_view() / 2.;
-                    scan_msg.angle_max =
-                        scan_simulator.get_field_of_view() / 2.;
-                    scan_msg.angle_increment =
-                        scan_simulator.get_angle_increment();
-                    scan_msg.range_max = 100;
-                    scan_msg.ranges = scan_float;
-                    scan_msg.intensities = scan_float;
-                    scan_pub_[i].publish(scan_msg);
+                scan_msg.header.stamp = timestamp;
+                scan_msg.header.frame_id = scan_frame + std::to_string(i);
+                scan_msg.angle_min = -scan_simulator.get_field_of_view() / 2.;
+                scan_msg.angle_max = scan_simulator.get_field_of_view() / 2.;
+                scan_msg.angle_increment = scan_simulator.get_angle_increment();
+                scan_msg.range_max = 100;
+                scan_msg.ranges = scan_float;
+                scan_msg.intensities = scan_float;
+                scan_pub_[i].publish(scan_msg);
 
                 // Publish a transformation between base link and laser
                 pub_laser_link_transform(timestamp, i);
@@ -662,7 +678,7 @@ class RacecarSimulator {
     /// ---------------------- CALLBACK FUNCTIONS ----------------------
     /**
      * rviz clicked point callback
-    */
+     */
     void obs_callback(const geometry_msgs::PointStamped &msg) {
         double x = msg.point.x;
         double y = msg.point.y;
@@ -855,7 +871,6 @@ class RacecarSimulator {
         imu_pub_[i].publish(imu);
     }
 };
-
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "racecar_simulator");

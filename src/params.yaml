@@ -124,3 +124,5 @@ broadcast_transform: true
 # init pose
 random_pose: true
 waypoint_file: "/home/a/learningmpc/src/MPCcontroller/data/centerline_waypoints.csv"
+#v : velocity control , a : accel control
+control_mode: "v"
