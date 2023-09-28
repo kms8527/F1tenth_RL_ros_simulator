@@ -77,7 +77,7 @@ private:
     double width_;
 
     // A simulator of the laser
-    ScanSimulator2D scan_simulator;
+    ScanSimulator2D scan_simulator_;
     double map_free_threshold;
 
     // Joystick parameters
@@ -115,7 +115,7 @@ private:
     ros::Publisher collision_pub;
 
     // publisher for map with obstacles
-    ros::Publisher map_pub;
+    ros::Publisher map_pub_;
 
     // publishers for opponent car
     ros::Publisher op_scan_pub;
@@ -285,7 +285,7 @@ public:
         n.getParam("obstacle_size", obstacle_size);
 
         // Initialize a simulator of the laser scanner
-        scan_simulator = ScanSimulator2D(
+        scan_simulator_ = ScanSimulator2D(
                     scan_beams,
                     scan_fov,
                     scan_std_dev);
@@ -302,7 +302,7 @@ public:
         op_odom_pub = n.advertise<nav_msgs::Odometry>(op_odom_topic, 1);
 
         // Make a publisher for publishing map with obstacles
-        map_pub = n.advertise<nav_msgs::OccupancyGrid>("/map", 1);
+        map_pub_ = n.advertise<nav_msgs::OccupancyGrid>("/map", 1);
 
         // Start a timer to output the pose
         update_pose_timer = n.createTimer(ros::Duration(update_pose_rate), &RacecarSimulator::update_pose, this);
@@ -454,7 +454,7 @@ public:
         // collision safety margin
         n.getParam("coll_threshold", thresh);
 
-        scan_ang_incr = scan_simulator.get_angle_increment();
+        scan_ang_incr = scan_simulator_.get_angle_increment();
 
         joy_desired_steer = 0;
         joy_desired_velocity = 0;
@@ -764,8 +764,8 @@ public:
                 op_scan_pose.theta = opponent_pose.theta;
 
                 // Compute the scan from the lidar
-                std::vector<double> scan = scan_simulator.scan(scan_pose);
-                std::vector<double> op_scan = scan_simulator.scan(op_scan_pose);
+                std::vector<double> scan = scan_simulator_.scan(scan_pose);
+                std::vector<double> op_scan = scan_simulator_.scan(op_scan_pose);
 
 
                 // Convert to float
@@ -782,9 +782,9 @@ public:
                     //double angle_infl = 0.04;
                     double angle_infl = 1./(10*diff_dist);
                     double angle = -scan_pose.theta + std::atan2(diff_y, diff_x);
-                    if (angle < scan_simulator.get_field_of_view()/2. || angle > -scan_simulator.get_field_of_view()/2.) {
-                        double angle_inc = scan_simulator.get_angle_increment();
-                        double angle_min = -scan_simulator.get_field_of_view()/2.;
+                    if (angle < scan_simulator_.get_field_of_view()/2. || angle > -scan_simulator_.get_field_of_view()/2.) {
+                        double angle_inc = scan_simulator_.get_angle_increment();
+                        double angle_min = -scan_simulator_.get_field_of_view()/2.;
                         int start_ind = static_cast<int>((angle-angle_infl-angle_min)/angle_inc);
                         int end_ind = static_cast<int>((angle+angle_infl-angle_min)/angle_inc);
                         for (int i=start_ind; i<=end_ind; i++) {
@@ -862,9 +862,9 @@ public:
                 sensor_msgs::LaserScan scan_msg;
                 scan_msg.header.stamp = timestamp;
                 scan_msg.header.frame_id = scan_frame;
-                scan_msg.angle_min = -scan_simulator.get_field_of_view()/2.;
-                scan_msg.angle_max =  scan_simulator.get_field_of_view()/2.;
-                scan_msg.angle_increment = scan_simulator.get_angle_increment();
+                scan_msg.angle_min = -scan_simulator_.get_field_of_view()/2.;
+                scan_msg.angle_max =  scan_simulator_.get_field_of_view()/2.;
+                scan_msg.angle_increment = scan_simulator_.get_angle_increment();
                 scan_msg.range_max = 100;
                 scan_msg.ranges = scan_;
                 scan_msg.intensities = scan_;
@@ -874,9 +874,9 @@ public:
                 sensor_msgs::LaserScan op_scan_msg;
                 op_scan_msg.header.stamp = timestamp;
                 op_scan_msg.header.frame_id = op_scan_frame;
-                op_scan_msg.angle_min = -scan_simulator.get_field_of_view()/2.;
-                op_scan_msg.angle_max =  scan_simulator.get_field_of_view()/2.;
-                op_scan_msg.angle_increment = scan_simulator.get_angle_increment();
+                op_scan_msg.angle_min = -scan_simulator_.get_field_of_view()/2.;
+                op_scan_msg.angle_max =  scan_simulator_.get_field_of_view()/2.;
+                op_scan_msg.angle_increment = scan_simulator_.get_angle_increment();
                 op_scan_msg.range_max = 100;
                 op_scan_msg.ranges = op_scan_;
                 op_scan_msg.intensities = op_scan_;
@@ -1117,7 +1117,7 @@ public:
                     current_map_.data[current_ind] = 100;
                 }
             }
-            map_pub.publish(current_map_);
+            map_pub_.publish(current_map_);
         }
 
         /// KEEP in sim
@@ -1132,7 +1132,7 @@ public:
 
                 }
             }
-            map_pub.publish(current_map_);
+            map_pub_.publish(current_map_);
         }
 
         /// KEEP in sim
@@ -1145,7 +1145,7 @@ public:
             if (clear_obs_clicked) {
                 ROS_INFO("Clearing obstacles.");
                 current_map_ = original_map_;
-                map_pub.publish(current_map_);
+                map_pub_.publish(current_map_);
 
                 clear_obs_clicked = false;
             }
@@ -1212,7 +1212,7 @@ public:
             }
 
             // Send the map to the scanner
-            scan_simulator.set_map(
+            scan_simulator_.set_map(
                         map,
                         height,
                         width,

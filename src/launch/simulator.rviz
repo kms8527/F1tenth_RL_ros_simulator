@@ -10,6 +10,7 @@ Panels:
         - /MarkerArray2
         - /RobotModel3
         - /RobotModel3/Links1
+        - /LaserScan2
       Splitter Ratio: 0.5
     Tree Height: 704
   - Class: rviz/Selection
@@ -29,7 +30,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: LaserScan
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -297,8 +298,7 @@ Visualization Manager:
       Marker Topic: /ref_points0
       Name: MarkerArray
       Namespaces:
-        global_path: true
-        ref_points: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -306,8 +306,7 @@ Visualization Manager:
       Marker Topic: /ref_points1
       Name: MarkerArray
       Namespaces:
-        global_path: true
-        ref_points: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -315,8 +314,7 @@ Visualization Manager:
       Marker Topic: /LMPC0
       Name: MarkerArray
       Namespaces:
-        borderlines: true
-        predicted_positions: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -324,8 +322,7 @@ Visualization Manager:
       Marker Topic: /LMPC1
       Name: MarkerArray
       Namespaces:
-        borderlines: true
-        predicted_positions: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -387,9 +384,36 @@ Visualization Manager:
       Marker Topic: /LMPC2
       Name: MarkerArray
       Namespaces:
-        borderlines: true
-        predicted_positions: true
+        {}
       Queue Size: 100
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/LaserScan
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: LaserScan
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.10000000149011612
+      Style: Flat Squares
+      Topic: /scan0
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
       Value: true
   Enabled: true
   Global Options:
@@ -419,7 +443,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 22.105987548828125
+      Distance: 7.950076580047607
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -427,17 +451,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.6379613280296326
-        Y: -5.954184532165527
-        Z: 0.04503277689218521
+        X: -0.24907632172107697
+        Y: -12.664756774902344
+        Z: 0.04663636535406113
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.5397963523864746
       Target Frame: <Fixed Frame>
-      Yaw: 2.9585769176483154
+      Yaw: 3.4935779571533203
     Saved: ~
 Window Geometry:
   Displays:

@@ -1,7 +1,7 @@
 #obj_num
 obj_num: 3
 # obstacle parameters
-obstacle_size: 3
+obstacle_size: 1
 
 
 # The distance between the front and
@@ -125,4 +125,4 @@ broadcast_transform: true
 random_pose: true
 waypoint_file: "/home/a/learningmpc/src/MPCcontroller/data/centerline_waypoints.csv"
 #v : velocity control , a : accel control
-control_mode: "v"
+control_mode: "a"

@@ -31,6 +31,7 @@
 
 #include <fstream>
 #include <functional>
+#include <std_msgs/Bool.h>
 
 using namespace racecar_simulator;
 
@@ -82,7 +83,8 @@ class RacecarSimulator {
     std::string map_frame, base_frame, scan_frame;
 
     // obstacle states (1D index) and parameters
-    std::vector<int> added_obs;
+    std::vector<int> static_obs_idx;
+    std::vector<int> dyn_obs_idx;
     // listen for clicked point for adding obstacles
     ros::Subscriber obs_sub;
     int obstacle_size;
@@ -102,7 +104,7 @@ class RacecarSimulator {
     double width_;
 
     // A simulator of the laser
-    ScanSimulator2D scan_simulator;
+    ScanSimulator2D scan_simulator_;
     double map_free_threshold;
 
     // For publishing transformations
@@ -110,6 +112,8 @@ class RacecarSimulator {
 
     // A timer to update the pose
     ros::Timer update_pose_timer;
+
+    std::vector<ros::ServiceClient> client_;
 
     // Listen for drive commands
     std::vector<ros::Subscriber> drive_sub_;
@@ -130,7 +134,10 @@ class RacecarSimulator {
     std::vector<ros::Publisher> imu_pub_;
 
     // publisher for map with obstacles
-    ros::Publisher map_pub;
+    ros::Publisher map_pub_;
+
+    // collision publisher
+    ros::Publisher collision_pub_;
 
     // keep an original map for obstacles
     nav_msgs::OccupancyGrid original_map_;
@@ -158,12 +165,13 @@ class RacecarSimulator {
     std::vector<double> car_distances;
 
     // for collision check
-    bool TTC = false;
-    double ttc_threshold;
-
+    bool is_collision_;
     bool random_pose_;
     std::vector<geometry_msgs::PointStamped> global_path_;
     std::string control_mode_;
+
+    std::vector<std::vector<geometry_msgs::Point>> obs_corner_pts_;
+    std::vector<double> min_scan_distances_;
 
   public:
     RacecarSimulator() : im_server("racecar_sim") {
@@ -228,6 +236,7 @@ class RacecarSimulator {
         n.getParam("random_pose", random_pose_);
         n.getParam("control_mode", control_mode_);
 
+        is_collision_ = false;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         if (random_pose_) {
             std::ifstream read_file;
@@ -300,10 +309,12 @@ class RacecarSimulator {
         }
 
         // Initialize a simulator of the laser scanner
-        scan_simulator = ScanSimulator2D(scan_beams, scan_fov, scan_std_dev);
+        scan_simulator_ = ScanSimulator2D(scan_beams, scan_fov, scan_std_dev);
 
         // Make a publisher for publishing map with obstacles
-        map_pub = n.advertise<nav_msgs::OccupancyGrid>("/map", 1);
+        map_pub_ = n.advertise<nav_msgs::OccupancyGrid>("/map", 1);
+
+        // publish the original
 
         // Start a timer to output the pose
         update_pose_timer = n.createTimer(ros::Duration(update_pose_rate),
@@ -322,7 +333,7 @@ class RacecarSimulator {
         for (int i = 0; i < obj_num_; i++) {
             ros::Subscriber drive_sub, pose_sub;
             ros::Publisher scan_pub, odom_pub, imu_pub;
-
+            ros::ServiceClient client;
             drive_sub = n.subscribe<ackermann_msgs::AckermannDriveStamped>(
                 drive_topic + std::to_string(i), 1,
                 boost::bind(&RacecarSimulator::drive_callback, this, _1, i));
@@ -342,6 +353,15 @@ class RacecarSimulator {
             imu_pub =
                 n.advertise<sensor_msgs::Imu>(imu_topic + std::to_string(i), 1);
 
+            // colision publisher
+            collision_pub_ = n.advertise<std_msgs::Bool>("/collision", 1);
+
+            std::string service_name = "/collision_service" + std::to_string(i);
+            fprintf(stderr, "%s\n", service_name.c_str());
+            // client = n.serviceClient<collision_msgs::collision>(
+            //     service_name.c_str());
+
+            client_.push_back(client);
             drive_sub_.push_back(drive_sub);
             // pose_sub_.push_back(pose_sub);
             // pose_rviz_sub_.push_back(pose_rviz_sub);
@@ -359,10 +379,10 @@ class RacecarSimulator {
                               &RacecarSimulator::obs_callback, this);
 
         // get collision safety margin
-        n.getParam("coll_threshold", thresh);
-        n.getParam("ttc_threshold", ttc_threshold);
+        // n.getParam("coll_threshold", thresh);
+        // n.getParam("ttc_threshold", ttc_threshold);
 
-        scan_ang_incr = scan_simulator.get_angle_increment();
+        scan_ang_incr = scan_simulator_.get_angle_increment();
         // TODO : if the vehicle model of multiple vehicles is different,
         //        the following code should be modified.
         cosines =
@@ -370,6 +390,7 @@ class RacecarSimulator {
         car_distances = Precompute::get_car_distances(
             scan_beams, params_.wheelbase, width_, scan_distance_to_base_link_,
             -scan_fov / 2.0, scan_ang_incr);
+        //----------------------------
 
         // OBSTACLE BUTTON:
         // wait for one map message to get the map data array
@@ -439,10 +460,10 @@ class RacecarSimulator {
         desired_speed_.clear();
         desired_steer_ang_.clear();
         desired_accel_.clear();
-        drive_sub_.clear();
-        scan_pub_.clear();
-        odom_pub_.clear();
-        imu_pub_.clear();
+        // drive_sub_.clear();
+        // scan_pub_.clear();
+        // odom_pub_.clear();
+        // imu_pub_.clear();
     }
 
     double compute_accel(double desired_velocity, int i) {
@@ -457,16 +478,88 @@ class RacecarSimulator {
         return acceleration;
     }
 
+    void RestartSimulation() {
+
+        clearvector();
+        std::vector<geometry_msgs::PointStamped> random_pose_array;
+        if (random_pose_)
+            random_pose_array =
+                sampleWithoutReplacement(global_path_, obj_num_);
+
+        // Initialize car state and driving commands
+        for (int i = 0; i < obj_num_; i++) {
+            if (random_pose_) {
+                CarState state = {.x = random_pose_array[i].point.x,
+                                  .y = random_pose_array[i].point.y,
+                                  .theta = random_pose_array[i].point.z,
+                                  .velocity = 0,
+                                  .steer_angle = 0.0,
+                                  .angular_velocity = 0.0,
+                                  .slip_angle = 0.0,
+                                  .st_dyn = false};
+                state_.push_back(state);
+
+            } else {
+                CarState state = {.x = i,
+                                  .y = i,
+                                  .theta = 0,
+                                  .velocity = 0,
+                                  .steer_angle = 0.0,
+                                  .angular_velocity = 0.0,
+                                  .slip_angle = 0.0,
+                                  .st_dyn = false};
+                state_.push_back(state);
+            }
+
+            accel_.push_back(0.0);
+            steer_angle_vel_.push_back(0.0);
+            desired_speed_.push_back(0.0);
+            desired_steer_ang_.push_back(0.0);
+            desired_accel_.push_back(0.0);
+        }
+    }
+
+    void UpdateObstaclePosition(int i) {
+        for (size_t idx = 0; idx < obj_num_; idx++) {
+            if (idx == i)
+                continue;
+            double x = state_[idx].x;
+            double y = state_[idx].y;
+            std::vector<int> rc = coord_2_cell_rc(x, y);
+            // int ind = rc_2_ind(rc[0], rc[1]);
+            // std::vector<int> rc = ind_2_rc(ind);
+            int current_r = rc[0];
+            int current_c = rc[1];
+            int current_ind = rc_2_ind(current_r, current_c);
+            // current_map_.data[current_ind] = 100;
+            scan_simulator_.addOccupancyGrid(current_ind,
+                                             0); // 0 : occupied , 99999 : Free
+        }
+        scan_simulator_.updateDistance();
+
+        // double x = msg.point.x;
+        // double y = msg.point.y;
+        // std::vector<int> rc = coord_2_cell_rc(x, y);
+        // added_obs.push_back(ind);
+        // add_obs(ind);
+    }
+
     void update_pose(const ros::TimerEvent &) {
 
+        obs_corner_pts_.clear();
+        min_scan_distances_.clear();
         // simulate P controller
         for (int i = 0; i < obj_num_; i++) {
             if (control_mode_ == "v") {
+                if (std::isnan(desired_speed_[i]))
+                    desired_speed_[i] = 0.0;
                 double accel = compute_accel(desired_speed_[i], i);
                 set_accel(desired_accel_[i], i);
-            } else if (control_mode_ == "a")
+            } else if (control_mode_ == "a") {
+                if (std::isnan(desired_accel_[i]))
+                    desired_accel_[i] = 0.0;
                 set_accel(desired_accel_[i], i);
-            else
+            } else
                 ROS_INFO("control mode error");
             set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i), i);
 
@@ -508,8 +601,13 @@ class RacecarSimulator {
                                                 std::sin(state_[i].theta);
                 scan_pose.theta = state_[i].theta;
 
+                getConerPoint(i);
+
+                // Update the oppenent vehicle pose to include in scan
+                // UpdateObstaclePosition(i);
+
                 // Compute the scan from the lidar
-                std::vector<double> scan = scan_simulator.scan(scan_pose);
+                std::vector<double> scan = scan_simulator_.scan(scan_pose);
 
                 // Convert to float
                 std::vector<float> scan_float(scan.size());
@@ -519,40 +617,46 @@ class RacecarSimulator {
                 // TTC Calculations are done here so the car can be halted in
                 // the simulator: to reset TTC
                 bool no_collision = true;
-                if (state_[i].velocity != 0) {
-                    for (size_t idx = 0; idx < scan_float.size(); idx++) {
-                        // TTC calculations
+                // if (state_[i].velocity != 0) {
+                //     // scan_float minest value
 
-                        // calculate projected velocity
-                        double proj_velocity =
-                            state_[i].velocity * cosines[idx];
-                        double ttc = (scan_float[idx] - car_distances[idx]) /
-                                     proj_velocity; // ???
-                        // if it's small enough to count as a collision
-                        if ((ttc < ttc_threshold) && (ttc >= 0.0)) {
-                            // if (!TTC) {
-                            //     first_ttc_actions();
-                            // }
+                //     for (size_t idx = 0; idx < scan_float.size(); idx++) {
+                //         // TTC calculations
 
-                            no_collision = false;
-                            TTC = true;
+                //         // calculate projected velocity
+                //         double proj_velocity =
+                //             state_[i].velocity * cosines[idx];
+                //         double ttc = (scan_float[idx] - car_distances[idx]) /
+                //                      proj_velocity; // ???
+                //         // if it's small enough to count as a collision
+                //         if ((ttc < ttc_threshold) && (ttc >= 0.0)) {
+                //             // if (!TTC) {
+                //             //     first_ttc_actions();
+                //             // }
 
-                            ROS_INFO("Collision detected");
-                        }
-                    }
-                }
+                //             no_collision = false;
+                //             TTC = true;
+
+                //             ROS_INFO("Collision detected");
+                //         }
+                //     }
+                // }
+                double min_scan =
+                    *std::min_element(scan_float.begin(), scan_float.end());
+                min_scan_distances_.push_back(min_scan);
 
                 // reset TTC
-                if (no_collision)
-                    TTC = false;
+                // if (no_collision)
+                //     TTC = false;
 
                 // Publish the laser message
                 sensor_msgs::LaserScan scan_msg;
                 scan_msg.header.stamp = timestamp;
                 scan_msg.header.frame_id = scan_frame + std::to_string(i);
-                scan_msg.angle_min = -scan_simulator.get_field_of_view() / 2.;
-                scan_msg.angle_max = scan_simulator.get_field_of_view() / 2.;
-                scan_msg.angle_increment = scan_simulator.get_angle_increment();
+                scan_msg.angle_min = -scan_simulator_.get_field_of_view() / 2.;
+                scan_msg.angle_max = scan_simulator_.get_field_of_view() / 2.;
+                scan_msg.angle_increment =
+                    scan_simulator_.get_angle_increment();
                 scan_msg.range_max = 100;
                 scan_msg.ranges = scan_float;
                 scan_msg.intensities = scan_float;
@@ -563,7 +667,74 @@ class RacecarSimulator {
             }
         }
 
+        bool curr_collision = checkAllCollisions(obs_corner_pts_);
+        if (curr_collision != is_collision_) {
+            is_collision_ = curr_collision;
+            std_msgs::Bool is_collision;
+            is_collision.data = is_collision_;
+            collision_pub_.publish(is_collision);
+            if (is_collision_) {
+                RestartSimulation();
+            }
+        }
+
+        // if (is_collision_) {
+        //     collision_msgs::collision srv;
+        //     srv.request.is_collision = is_collision_;
+        //     for (size_t k = 0; k < obj_num_; k++) {
+        //         if (!client_[k].call(srv)) {
+        //             fprintf(stderr,
+        //                     "Failed to call service collision_service\n");
+        //         }
+        //     }
+
+        //     RestartSimulation();
+        //     is_collision_ = false;
+        //     for (size_t k = 0; k < obj_num_; k++) {
+        //         if (!client_[k].call(srv)) {
+        //             fprintf(stderr, "Failed to call restart service\n");
+        //         }
+        //     }
+        // }
+
     } // end of update_pose
+
+    /**
+     * @brief Get the Coner Point object
+     *
+     * @param i : index of vehicle
+     */
+    void getConerPoint(int i) {
+        std::vector<geometry_msgs::Point> corner_pts;
+        geometry_msgs::Point p1, p2, p3, p4;
+
+        p1.x = state_[i].x + params_.wheelbase / 2.0 * cos(state_[i].theta) -
+               width_ / 2.0 * sin(state_[i].theta);
+        p1.y = state_[i].y + params_.wheelbase / 2.0 * sin(state_[i].theta) +
+               width_ / 2.0 * cos(state_[i].theta);
+
+        p2.x = state_[i].x + params_.wheelbase / 2.0 * cos(state_[i].theta) +
+               width_ / 2.0 * sin(state_[i].theta);
+        p2.y = state_[i].y + params_.wheelbase / 2.0 * sin(state_[i].theta) -
+               width_ / 2.0 * cos(state_[i].theta);
+
+        p3.x = state_[i].x - params_.wheelbase / 2.0 * cos(state_[i].theta) +
+               width_ / 2.0 * sin(state_[i].theta);
+        p3.y = state_[i].y - params_.wheelbase / 2.0 * sin(state_[i].theta) -
+               width_ / 2.0 * cos(state_[i].theta);
+
+        p4.x = state_[i].x - params_.wheelbase / 2.0 * cos(state_[i].theta) -
+               width_ / 2.0 * sin(state_[i].theta);
+        p4.y = state_[i].y - params_.wheelbase / 2.0 * sin(state_[i].theta) +
+               width_ / 2.0 * cos(state_[i].theta);
+
+        corner_pts.push_back(p1);
+        corner_pts.push_back(p2);
+        corner_pts.push_back(p3);
+        corner_pts.push_back(p4);
+
+        obs_corner_pts_.push_back(corner_pts);
+    }
 
     /// ---------------------- GENERAL HELPER FUNCTIONS ----------------------
 
@@ -618,7 +789,7 @@ class RacecarSimulator {
                 current_map_.data[current_ind] = 100;
             }
         }
-        map_pub.publish(current_map_);
+        map_pub_.publish(current_map_);
     }
 
     void clear_obs(int ind) {
@@ -631,7 +802,7 @@ class RacecarSimulator {
                 current_map_.data[current_ind] = 0;
             }
         }
-        map_pub.publish(current_map_);
+        map_pub_.publish(current_map_);
     }
 
     double compute_steer_vel(double desired_angle, size_t i) {
@@ -684,7 +855,7 @@ class RacecarSimulator {
         double y = msg.point.y;
         std::vector<int> rc = coord_2_cell_rc(x, y);
         int ind = rc_2_ind(rc[0], rc[1]);
-        added_obs.push_back(ind);
+        static_obs_idx.push_back(ind);
         add_obs(ind);
     }
 
@@ -747,7 +918,7 @@ class RacecarSimulator {
         if (clear_obs_clicked) {
             ROS_INFO("Clearing obstacles.");
             current_map_ = original_map_;
-            map_pub.publish(current_map_);
+            map_pub_.publish(current_map_);
 
             clear_obs_clicked = false;
         }
@@ -777,8 +948,8 @@ class RacecarSimulator {
         }
 
         // Send the map to the scanner
-        scan_simulator.set_map(map, height, width, resolution, origin,
-                               map_free_threshold);
+        scan_simulator_.set_map(map, height, width, resolution, origin,
+                                map_free_threshold);
         map_exists = true;
     }
 
@@ -858,6 +1029,12 @@ class RacecarSimulator {
         odom.twist.twist.linear.x = state_[i].velocity;
         odom.twist.twist.angular.z = state_[i].angular_velocity;
 
+        if (std::isnan(state_[i].x) || std::isnan(state_[i].y) ||
+            std::isnan(state_[i].theta)) {
+            std::cout << "nan detected" << std::endl;
+            return;
+        }
+
         odom_pub_[i].publish(odom);
     }
 
@@ -869,6 +1046,64 @@ class RacecarSimulator {
         imu.header.frame_id = map_frame;
 
         imu_pub_[i].publish(imu);
+    }
+
+    bool checkCollision(const std::vector<geometry_msgs::Point> &polyA,
+                        const std::vector<geometry_msgs::Point> &polyB) {
+        for (int shape = 0; shape < 2; shape++) {
+            const std::vector<geometry_msgs::Point> &polygon =
+                (shape == 0) ? polyA : polyB;
+
+            for (size_t i = 0; i < polygon.size(); i++) {
+                int j = (i + 1) % polygon.size();
+                double normalX = polygon[j].y - polygon[i].y;
+                double normalY = polygon[i].x - polygon[j].x;
+
+                double minA = std::numeric_limits<double>::max();
+                double maxA = std::numeric_limits<double>::min();
+                for (const auto &point : polyA) {
+                    double projected = normalX * point.x + normalY * point.y;
+                    minA = std::min(minA, projected);
+                    maxA = std::max(maxA, projected);
+                }
+
+                double minB = std::numeric_limits<double>::max();
+                double maxB = std::numeric_limits<double>::min();
+                for (const auto &point : polyB) {
+                    double projected = normalX * point.x + normalY * point.y;
+                    minB = std::min(minB, projected);
+                    maxB = std::max(maxB, projected);
+                }
+
+                if (maxA < minB || maxB < minA) {
+                    return false; // Separating axis found
+                }
+            }
+        }
+
+        return true; // No separating axis found, the polygons are colliding
+    }
+
+    bool checkAllCollisions(
+        const std::vector<std::vector<geometry_msgs::Point>> &obs_corner_pts) {
+        double thresh = width_ / 2.0;
+
+        for (size_t i = 0; i < min_scan_distances_.size(); i++) {
+            if (min_scan_distances_[i] < thresh) {
+                fprintf(stderr, "Collision detected\n");
+                return true;
+            }
+        }
+
+        for (size_t i = 0; i < obs_corner_pts.size(); i++) {
+            for (size_t j = i + 1; j < obs_corner_pts.size(); j++) {
+                if (checkCollision(obs_corner_pts[i], obs_corner_pts[j])) {
+                    fprintf(stderr, "Collision detected\n");
+                    return true; // Collision detected between two vehicles
+                }
+            }
+        }
+        return false; // No collisions detected
     }
 };
 

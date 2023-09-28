@@ -1,6 +1,5 @@
-#include "racecar_simulator/pose_2d.hpp"
 #include "racecar_simulator/scan_simulator_2d.hpp"
-#include "racecar_simulator/distance_transform.hpp"
+
 
 using namespace racecar_simulator;
 
@@ -55,7 +54,6 @@ void ScanSimulator2D::scan(const Pose2D & pose, double * scan_data) {
   for (int i = 0; i < num_beams; i++) {
     // Compute the distance to the nearest point
     scan_data[i] = trace_ray(pose.x, pose.y, theta_index);
-
     // Add Gaussian noise to the ray trace
     if (scan_std_dev > 0)
         scan_data[i] += noise_dist(noise_generator);
@@ -96,6 +94,10 @@ double ScanSimulator2D::distance_transform(double x, double y) const {
   // Convert the pose to a grid cell
   int cell = xy_to_cell(x, y);
   if (cell < 0) return 0;
+  // for(size_t i=0; i<dt.size(); i++){
+  //   if(dt[i] != 0)
+  //     std::cout << dt[i] << std::endl;
+  // }
 
   return dt[cell];
 }

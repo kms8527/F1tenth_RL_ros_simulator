@@ -1,15 +1,16 @@
 #pragma once
 
-#include <random>
-
+// #include "racecar_simulator/pose_2d.hpp"
+#include "racecar_simulator/distance_transform.hpp"
 #include "racecar_simulator/pose_2d.hpp"
+#include <iostream>
+#include <random>
 
 namespace racecar_simulator {
 
 class ScanSimulator2D {
 
   private:
-
     // Laser settings
     int num_beams;
     double field_of_view;
@@ -23,7 +24,7 @@ class ScanSimulator2D {
     double resolution;
     size_t width, height;
     Pose2D origin;
-    std::vector<double> dt;
+    std::vector<double> dt; // distance at each cell between nearest obstacle and the ego vehicle
 
     // Static output vector
     std::vector<double> scan_output;
@@ -44,37 +45,33 @@ class ScanSimulator2D {
 
     ScanSimulator2D() {}
 
-    ScanSimulator2D(
-        int num_beams_, 
-        double field_of_view_, 
-        double scan_std_dev_, 
-        double ray_tracing_epsilon=0.0001,
-        int theta_discretization=2000);
+    ScanSimulator2D(int num_beams_, double field_of_view_, double scan_std_dev_,
+                    double ray_tracing_epsilon = 0.0001,
+                    int theta_discretization = 2000);
 
-    void set_map(
-        const std::vector<double> & map, 
-        size_t height, 
-        size_t width, 
-        double resolution,
-        const Pose2D & origin,
-        double free_threshold);
+    void set_map(const std::vector<double> &map, size_t height, size_t width,
+                 double resolution, const Pose2D &origin,
+                 double free_threshold);
     void set_map(const std::vector<double> &map, double free_threshold);
 
-    void scan(const Pose2D & pose, double * scan_data);
-    const std::vector<double> scan(const Pose2D & pose);
+    void scan(const Pose2D &pose, double *scan_data);
+    const std::vector<double> scan(const Pose2D &pose);
 
     double distance_transform(double x, double y) const;
 
     double trace_ray(double x, double y, double theta_index) const;
 
-    void xy_to_row_col(double x, double y, int * row, int * col) const;
+    void xy_to_row_col(double x, double y, int *row, int *col) const;
     int row_col_to_cell(int row, int col) const;
     int xy_to_cell(double x, double y) const;
 
-    double get_field_of_view() const {return field_of_view;}
-    double get_angle_increment() const {return angle_increment;}
-    int get_theta_discret() const {return theta_discretization;}
-    int get_num_beams() const {return num_beams;}
+    double get_field_of_view() const { return field_of_view; }
+    double get_angle_increment() const { return angle_increment; }
+    int get_theta_discret() const { return theta_discretization; }
+    int get_num_beams() const { return num_beams; }
+    void addOccupancyGrid(int idx, double value) {dt[idx] = value;}
+    void updateDistance(){DistanceTransform::distance_2d(dt, width, height, resolution);}
+
 };
 
-}
+} // namespace racecar_simulator

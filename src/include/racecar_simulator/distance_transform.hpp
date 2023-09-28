@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <limits>
+#include <cstddef>
 
 namespace racecar_simulator {
 
