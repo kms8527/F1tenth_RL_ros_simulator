@@ -298,7 +298,8 @@ Visualization Manager:
       Marker Topic: /ref_points0
       Name: MarkerArray
       Namespaces:
-        {}
+        global_path: true
+        ref_points: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -306,7 +307,8 @@ Visualization Manager:
       Marker Topic: /ref_points1
       Name: MarkerArray
       Namespaces:
-        {}
+        global_path: true
+        ref_points: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -314,7 +316,8 @@ Visualization Manager:
       Marker Topic: /LMPC0
       Name: MarkerArray
       Namespaces:
-        {}
+        borderlines: true
+        predicted_positions: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -322,7 +325,8 @@ Visualization Manager:
       Marker Topic: /LMPC1
       Name: MarkerArray
       Namespaces:
-        {}
+        borderlines: true
+        predicted_positions: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -384,7 +388,8 @@ Visualization Manager:
       Marker Topic: /LMPC2
       Name: MarkerArray
       Namespaces:
-        {}
+        borderlines: true
+        predicted_positions: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -415,6 +420,15 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /ref_points2
+      Name: ref2
+      Namespaces:
+        global_path: true
+        ref_points: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -443,7 +457,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 7.950076580047607
+      Distance: 16.07066535949707
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -451,17 +465,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.24907632172107697
-        Y: -12.664756774902344
-        Z: 0.04663636535406113
+        X: 0.4395209550857544
+        Y: -6.015377044677734
+        Z: -0.3746337592601776
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5397963523864746
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 3.4935779571533203
+      Yaw: 2.903576135635376
     Saved: ~
 Window Geometry:
   Displays:

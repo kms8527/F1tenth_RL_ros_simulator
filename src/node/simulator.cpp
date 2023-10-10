@@ -672,7 +672,8 @@ class RacecarSimulator {
             is_collision_ = curr_collision;
             std_msgs::Bool is_collision;
             is_collision.data = is_collision_;
-            collision_pub_.publish(is_collision);
+            if(is_collision_)
+                collision_pub_.publish(is_collision);
             if (is_collision_) {
                 RestartSimulation();
             }
@@ -698,6 +699,11 @@ class RacecarSimulator {
         // }
 
     } // end of update_pose
+
+
+    double RLRewardFunction(){
+        
+    }
 
     /**
      * @brief Get the Coner Point object
