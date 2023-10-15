@@ -63,6 +63,11 @@ if(DEFINED CATKIN_DEVEL_PREFIX)
 #  add_message_files(
 #    FILES
 #    )
+add_service_files(
+  FILES
+  observation.srv
+)
+	
   generate_messages(
     DEPENDENCIES
     std_msgs

@@ -10,7 +10,7 @@ Panels:
         - /MarkerArray2
         - /RobotModel3
         - /RobotModel3/Links1
-        - /LaserScan2
+        - /scan01
       Splitter Ratio: 0.5
     Tree Height: 704
   - Class: rviz/Selection
@@ -30,7 +30,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan
+    SyncSource: scan0
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -307,8 +307,7 @@ Visualization Manager:
       Marker Topic: /ref_points1
       Name: MarkerArray
       Namespaces:
-        global_path: true
-        ref_points: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -325,8 +324,7 @@ Visualization Manager:
       Marker Topic: /LMPC1
       Name: MarkerArray
       Namespaces:
-        borderlines: true
-        predicted_positions: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -386,10 +384,9 @@ Visualization Manager:
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /LMPC2
-      Name: MarkerArray
+      Name: lmpc2
       Namespaces:
-        borderlines: true
-        predicted_positions: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -408,7 +405,7 @@ Visualization Manager:
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
-      Name: LaserScan
+      Name: scan0
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -425,9 +422,17 @@ Visualization Manager:
       Marker Topic: /ref_points2
       Name: ref2
       Namespaces:
-        global_path: true
-        ref_points: true
+        {}
       Queue Size: 100
+      Value: true
+    - Alpha: 1
+      Class: rviz/Axes
+      Enabled: true
+      Length: 1
+      Name: Axes
+      Radius: 0.10000000149011612
+      Reference Frame: <Fixed Frame>
+      Show Trail: false
       Value: true
   Enabled: true
   Global Options:
@@ -457,7 +462,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 16.07066535949707
+      Distance: 17.9991455078125
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -475,7 +480,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 2.903576135635376
+      Yaw: 2.898576021194458
     Saved: ~
 Window Geometry:
   Displays:
@@ -495,5 +500,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1374
-  X: 2252
-  Y: 27
+  X: 353
+  Y: 6

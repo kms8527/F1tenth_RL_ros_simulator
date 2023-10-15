@@ -81,6 +81,11 @@ CarState STKinematics::update(
     end.slip_angle = start.slip_angle + slip_angle_dot * dt;
     end.st_dyn = true;
 
+    if(end.theta > M_PI)
+        end.theta -= 2*M_PI;
+    else if(end.theta < -M_PI)
+        end.theta += 2*M_PI;
+
     return end;
 }
 
@@ -113,6 +118,10 @@ CarState STKinematics::update_k(
     end.slip_angle = 0; //start.slip_angle + slip_angle_dot * dt;
     end.st_dyn = false;
 
+    if(end.theta > M_PI)
+        end.theta -= 2*M_PI;
+    else if(end.theta < -M_PI)
+        end.theta += 2*M_PI;
 
     return end;
 

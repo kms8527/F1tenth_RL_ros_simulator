@@ -31,7 +31,9 @@
 
 #include <fstream>
 #include <functional>
+#include <racecar_simulator/observation.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/Float32MultiArray.h>
 
 using namespace racecar_simulator;
 
@@ -113,7 +115,7 @@ class RacecarSimulator {
     // A timer to update the pose
     ros::Timer update_pose_timer;
 
-    std::vector<ros::ServiceClient> client_;
+    // std::vector<ros::ServiceClient> client_;
 
     // Listen for drive commands
     std::vector<ros::Subscriber> drive_sub_;
@@ -126,7 +128,13 @@ class RacecarSimulator {
     std::vector<ros::Subscriber> pose_sub_;
     ros::Subscriber pose_rviz_sub_;
     ros::Subscriber opp_pose_rviz_sub_;
+    ros::Subscriber observation_sub_;
 
+    // synchronized mode
+    double sync_time_step_; // in seconds, TODO : synchronize with MPC time step(now 0.025)
+    bool synchronized_mode_;
+    // double sync_time_;
+    // ros::ServiceServer observation_service_;
     // Publish a scan, odometry, and imu data
     bool broadcast_transform;
     std::vector<ros::Publisher> scan_pub_;
@@ -193,6 +201,7 @@ class RacecarSimulator {
         n.getParam("pose_rviz_topic", pose_rviz_topic);
         n.getParam("opp_pose_rviz_topic", opp_pose_rviz_topic);
         n.getParam("imu_topic", imu_topic);
+        n.getParam("sync_time_step", sync_time_step_);
 
         // Get the transformation frame names
         n.getParam("map_frame", map_frame);
@@ -315,28 +324,53 @@ class RacecarSimulator {
         map_pub_ = n.advertise<nav_msgs::OccupancyGrid>("/map", 1);
 
         // publish the original
+        // synchronized_mode_ = true;
+        if (synchronized_mode_) {
+            // sync_time_ = 0.;
 
-        // Start a timer to output the pose
-        update_pose_timer = n.createTimer(ros::Duration(update_pose_rate),
-                                          &RacecarSimulator::update_pose, this);
+            // observation_service_ = n.advertiseService(
+            //     "/observation_service",
+            //     &RacecarSimulator::ObservationServiceServer, this);
+            observation_sub_ =
+                n.subscribe(drive_topic + std::to_string(0), 1,
+                            &RacecarSimulator::ObservationCallback, this);
+        } else {
+            // Start a timer to output the pose
+            update_pose_timer =
+                n.createTimer(ros::Duration(update_pose_rate),
+                              &RacecarSimulator::update_pose, this);
+        }
 
         // pose_rviz_sub_ =
         // n.subscribe<geometry_msgs::PoseWithCovarianceStamped>(pose_rviz_topic,
         // 1, &RacecarSimulator::pose_rviz_callback, this);
-        pose_rviz_sub_ = n.subscribe(
-            pose_rviz_topic, 1, &RacecarSimulator::pose_rviz_callback, this);
-        opp_pose_rviz_sub_ =
-            n.subscribe(opp_pose_rviz_topic, 1,
-                        &RacecarSimulator::opp_pose_rviz_callback, this);
+        pose_rviz_sub_ = n.subscribe(pose_rviz_topic, 1,
+                                     &RacecarSimulator::pose_rviz_callback,
+                                     this); // ego vehicle pose
+        opp_pose_rviz_sub_ = n.subscribe(
+            opp_pose_rviz_topic, 1, &RacecarSimulator::opp_pose_rviz_callback,
+            this); // opponent vehicle pose
 
         // Start a subscriber to listen to drive commands
         for (int i = 0; i < obj_num_; i++) {
             ros::Subscriber drive_sub, pose_sub;
             ros::Publisher scan_pub, odom_pub, imu_pub;
             ros::ServiceClient client;
-            drive_sub = n.subscribe<ackermann_msgs::AckermannDriveStamped>(
-                drive_topic + std::to_string(i), 1,
-                boost::bind(&RacecarSimulator::drive_callback, this, _1, i));
+            if (synchronized_mode_) {
+                if (i != 0) {
+                    drive_sub =
+                        n.subscribe<ackermann_msgs::AckermannDriveStamped>(
+                            drive_topic + std::to_string(i), 1,
+                            boost::bind(&RacecarSimulator::drive_callback, this,
+                                        _1, i));
+                }
+
+            } else {
+                drive_sub = n.subscribe<ackermann_msgs::AckermannDriveStamped>(
+                    drive_topic + std::to_string(i), 1,
+                    boost::bind(&RacecarSimulator::drive_callback, this, _1,
+                                i));
+            }
             pose_sub = n.subscribe<geometry_msgs::PoseStamped>(
                 pose_topic + std::to_string(i), 1,
                 boost::bind(&RacecarSimulator::pose_callback, this, _1, i));
@@ -356,12 +390,12 @@ class RacecarSimulator {
             // colision publisher
             collision_pub_ = n.advertise<std_msgs::Bool>("/collision", 1);
 
-            std::string service_name = "/collision_service" + std::to_string(i);
-            fprintf(stderr, "%s\n", service_name.c_str());
+            // std::string service_name = "/collision_service" +
+            // std::to_string(i); fprintf(stderr, "%s\n", service_name.c_str());
             // client = n.serviceClient<collision_msgs::collision>(
             //     service_name.c_str());
 
-            client_.push_back(client);
+            // client_.push_back(client);
             drive_sub_.push_back(drive_sub);
             // pose_sub_.push_back(pose_sub);
             // pose_rviz_sub_.push_back(pose_rviz_sub);
@@ -450,6 +484,25 @@ class RacecarSimulator {
 
         im_server.applyChanges();
 
+        if (synchronized_mode_) {
+            sleep(3.);
+            RestartSimulation();
+            ros::Time timestamp = ros::Time::now();
+
+            for (size_t i = 0; i < obj_num_; i++) {
+                pub_pose_transform(timestamp, i);
+
+                /// Publish the steering angle as a transformation so the wheels
+                pub_steer_ang_transform(timestamp, i);
+
+                // Make an odom message as well and publish it
+                pub_odom(timestamp, i);
+
+                // TODO: make and publish IMU message
+                pub_imu(timestamp, i);
+            }
+        }
+
         ROS_INFO("Simulator constructed.");
     }
 
@@ -479,7 +532,7 @@ class RacecarSimulator {
     }
 
     void RestartSimulation() {
-
+        // sync_time_ = 0.0;
         clearvector();
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         if (random_pose_)
@@ -542,6 +595,137 @@ class RacecarSimulator {
         // std::vector<int> rc = coord_2_cell_rc(x, y);
         // added_obs.push_back(ind);
         // add_obs(ind);
+    }
+
+    void ObservationCallback(
+        const ackermann_msgs::AckermannDriveStampedConstPtr &msg) {
+        obs_corner_pts_.clear();
+        min_scan_distances_.clear();
+        // sync_time_ += 1.0;
+
+        std::cout << "ego received drive command \n";
+        desired_speed_[0] = msg->drive.speed;
+        desired_accel_[0] = msg->drive.acceleration;
+        desired_steer_ang_[0] = msg->drive.steering_angle;
+
+        // Update the pose
+        ros::Time timestamp = ros::Time::now();
+        // simulate P controller
+        for (int i = 0; i < obj_num_; i++) {
+            if (control_mode_ == "v") {
+                if (std::isnan(desired_speed_[i]))
+                    desired_speed_[i] = 0.0;
+                double accel = compute_accel(desired_speed_[i], i);
+                set_accel(desired_accel_[i], i);
+            } else if (control_mode_ == "a") {
+                if (std::isnan(desired_accel_[i]))
+                    desired_accel_[i] = 0.0;
+                set_accel(desired_accel_[i], i);
+            } else
+                ROS_INFO("control mode error");
+            set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i), i);
+
+            // double current_seconds = timestamp.toSec();
+            state_[i] =
+                STKinematics::update(state_[i], accel_[i], steer_angle_vel_[i],
+                                     params_, sync_time_step_);
+            state_[i].velocity =
+                std::min(std::max(state_[i].velocity, -max_speed_), max_speed_);
+            state_[i].steer_angle =
+                std::min(std::max(state_[i].steer_angle, -max_steering_angle_),
+                         max_steering_angle_);
+
+            // previous_seconds = current_seconds;
+
+            /// Publish the pose as a transformation
+            pub_pose_transform(timestamp, i);
+
+            /// Publish the steering angle as a transformation so the wheels
+            pub_steer_ang_transform(timestamp, i);
+
+            // Make an odom message as well and publish it
+            pub_odom(timestamp, i);
+
+            // TODO: make and publish IMU message
+            pub_imu(timestamp, i);
+
+            /// KEEP in sim
+            // If we have a map, perform a scan
+            if (map_exists) {
+                // Get the pose of the lidar, given the pose of base link
+                // (base link is the center of the rear axle)
+                Pose2D scan_pose;
+                scan_pose.x = state_[i].x + scan_distance_to_base_link_ *
+                                                std::cos(state_[i].theta);
+                scan_pose.y = state_[i].y + scan_distance_to_base_link_ *
+                                                std::sin(state_[i].theta);
+                scan_pose.theta = state_[i].theta;
+
+                getConerPoint(i);
+
+                // Update the oppenent vehicle pose to include in scan
+                // UpdateObstaclePosition(i);
+
+                // Compute the scan from the lidar
+                std::vector<double> scan = scan_simulator_.scan(scan_pose); // scan : distance from lidar to obstacle
+
+                // Convert to float
+                std::vector<float> scan_float(scan.size());
+                for (size_t idx = 0; idx < scan.size(); idx++)
+                    scan_float[idx] = scan[idx];
+
+                // TTC Calculations are done here so the car can be halted in
+                // the simulator: to reset TTC
+                bool no_collision = true;
+                double min_scan =
+                    *std::min_element(scan_float.begin(), scan_float.end());
+                min_scan_distances_.push_back(min_scan);
+
+                // Publish the laser message
+                sensor_msgs::LaserScan scan_msg;
+                scan_msg.header.stamp = timestamp;
+                scan_msg.header.frame_id = scan_frame + std::to_string(i);
+                scan_msg.angle_min = -scan_simulator_.get_field_of_view() / 2.;
+                scan_msg.angle_max = scan_simulator_.get_field_of_view() / 2.;
+                scan_msg.angle_increment =
+                    scan_simulator_.get_angle_increment();
+                scan_msg.range_max = 100;
+                scan_msg.ranges = scan_float;
+                scan_msg.intensities = scan_float;
+                scan_pub_[i].publish(scan_msg);
+
+                // Publish a transformation between base link and laser
+                pub_laser_link_transform(timestamp, i);
+            }
+        }
+
+        bool curr_collision = checkAllCollisions(obs_corner_pts_);
+        if (curr_collision != is_collision_) {
+            is_collision_ = curr_collision;
+            std_msgs::Bool is_collision;
+            is_collision.data = is_collision_;
+            if (is_collision_)
+                collision_pub_.publish(is_collision);
+            if (is_collision_) {
+                sleep(2.);
+                RestartSimulation();
+                ros::Time timestamp0 = ros::Time::now();
+
+                for (size_t i = 0; i < obj_num_; i++) {
+                    pub_pose_transform(timestamp0, i);
+
+                    /// Publish the steering angle as a transformation so the
+                    /// wheels
+                    pub_steer_ang_transform(timestamp0, i);
+
+                    // Make an odom message as well and publish it
+                    pub_odom(timestamp0, i);
+
+                    // TODO: make and publish IMU message
+                    pub_imu(timestamp0, i);
+                }
+            }
+        }
     }
 
     void update_pose(const ros::TimerEvent &) {
@@ -672,7 +856,7 @@ class RacecarSimulator {
             is_collision_ = curr_collision;
             std_msgs::Bool is_collision;
             is_collision.data = is_collision_;
-            if(is_collision_)
+            if (is_collision_)
                 collision_pub_.publish(is_collision);
             if (is_collision_) {
                 RestartSimulation();
@@ -699,11 +883,6 @@ class RacecarSimulator {
         // }
 
     } // end of update_pose
-
-
-    double RLRewardFunction(){
-        
-    }
 
     /**
      * @brief Get the Coner Point object
