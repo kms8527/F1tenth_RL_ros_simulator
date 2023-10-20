@@ -30,7 +30,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: scan0
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -298,8 +298,7 @@ Visualization Manager:
       Marker Topic: /ref_points0
       Name: MarkerArray
       Namespaces:
-        global_path: true
-        ref_points: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -315,8 +314,7 @@ Visualization Manager:
       Marker Topic: /LMPC0
       Name: MarkerArray
       Namespaces:
-        borderlines: true
-        predicted_positions: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -501,4 +499,4 @@ Window Geometry:
     collapsed: true
   Width: 1374
   X: 353
-  Y: 6
+  Y: 0

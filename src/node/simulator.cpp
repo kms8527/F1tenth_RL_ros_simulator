@@ -89,6 +89,7 @@ class RacecarSimulator {
     std::vector<int> dyn_obs_idx;
     // listen for clicked point for adding obstacles
     ros::Subscriber obs_sub;
+    ros::Subscriber reset_sub;
     int obstacle_size;
 
     // interactive markers' server
@@ -131,7 +132,8 @@ class RacecarSimulator {
     ros::Subscriber observation_sub_;
 
     // synchronized mode
-    double sync_time_step_; // in seconds, TODO : synchronize with MPC time step(now 0.025)
+    double sync_time_step_; // in seconds, TODO : synchronize with MPC time
+                            // step(now 0.025)
     bool synchronized_mode_;
     // double sync_time_;
     // ros::ServiceServer observation_service_;
@@ -412,6 +414,9 @@ class RacecarSimulator {
         obs_sub = n.subscribe("/clicked_point", 1,
                               &RacecarSimulator::obs_callback, this);
 
+        reset_sub =
+            n.subscribe("/RL_reset", 1, &RacecarSimulator::reset_callback, this);
+
         // get collision safety margin
         // n.getParam("coll_threshold", thresh);
         // n.getParam("ttc_threshold", ttc_threshold);
@@ -610,6 +615,7 @@ class RacecarSimulator {
 
         // Update the pose
         ros::Time timestamp = ros::Time::now();
+        fprintf(stderr, "timestamp : %f\n", timestamp.toSec());
         // simulate P controller
         for (int i = 0; i < obj_num_; i++) {
             if (control_mode_ == "v") {
@@ -667,7 +673,8 @@ class RacecarSimulator {
                 // UpdateObstaclePosition(i);
 
                 // Compute the scan from the lidar
-                std::vector<double> scan = scan_simulator_.scan(scan_pose); // scan : distance from lidar to obstacle
+                std::vector<double> scan = scan_simulator_.scan(
+                    scan_pose); // scan : distance from lidar to obstacle
 
                 // Convert to float
                 std::vector<float> scan_float(scan.size());
@@ -706,25 +713,25 @@ class RacecarSimulator {
             is_collision.data = is_collision_;
             if (is_collision_)
                 collision_pub_.publish(is_collision);
-            if (is_collision_) {
-                sleep(2.);
-                RestartSimulation();
-                ros::Time timestamp0 = ros::Time::now();
+            // if (is_collision_) {
+            //     sleep(2.);
+            //     RestartSimulation();
+            //     ros::Time timestamp0 = ros::Time::now();
 
-                for (size_t i = 0; i < obj_num_; i++) {
-                    pub_pose_transform(timestamp0, i);
+            //     for (size_t i = 0; i < obj_num_; i++) {
+            //         pub_pose_transform(timestamp0, i);
 
-                    /// Publish the steering angle as a transformation so the
-                    /// wheels
-                    pub_steer_ang_transform(timestamp0, i);
+            //         /// Publish the steering angle as a transformation so the
+            //         /// wheels
+            //         pub_steer_ang_transform(timestamp0, i);
 
-                    // Make an odom message as well and publish it
-                    pub_odom(timestamp0, i);
+            //         // Make an odom message as well and publish it
+            //         pub_odom(timestamp0, i);
 
-                    // TODO: make and publish IMU message
-                    pub_imu(timestamp0, i);
-                }
-            }
+            //         // TODO: make and publish IMU message
+            //         pub_imu(timestamp0, i);
+            //     }
+            // }
         }
     }
 
@@ -1042,6 +1049,28 @@ class RacecarSimulator {
         int ind = rc_2_ind(rc[0], rc[1]);
         static_obs_idx.push_back(ind);
         add_obs(ind);
+    }
+
+    void reset_callback(const std_msgs::Bool &msg) {
+        std::cout<<(msg.data);
+        fprintf(stderr, "reset callback \n");
+        sleep(2.);
+        RestartSimulation();
+        ros::Time timestamp0 = ros::Time::now();
+
+        for (size_t i = 0; i < obj_num_; i++) {
+            pub_pose_transform(timestamp0, i);
+
+            /// Publish the steering angle as a transformation so the
+            /// wheels
+            pub_steer_ang_transform(timestamp0, i);
+
+            // Make an odom message as well and publish it
+            pub_odom(timestamp0, i);
+
+            // TODO: make and publish IMU message
+            pub_imu(timestamp0, i);
+        }
     }
 
     // void pose_callback(const geometry_msgs::PoseStamped &msg) {
