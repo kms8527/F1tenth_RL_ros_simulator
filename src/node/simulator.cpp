@@ -31,7 +31,8 @@
 
 #include <fstream>
 #include <functional>
-#include <racecar_simulator/observation.h>
+// #include <racecar_simulator/observation.h>
+#include "control_msgs/reset.h"
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float32MultiArray.h>
 
@@ -89,7 +90,7 @@ class RacecarSimulator {
     std::vector<int> dyn_obs_idx;
     // listen for clicked point for adding obstacles
     ros::Subscriber obs_sub;
-    ros::Subscriber reset_sub;
+    // ros::Subscriber reset_sub;
     int obstacle_size;
 
     // interactive markers' server
@@ -117,6 +118,7 @@ class RacecarSimulator {
     ros::Timer update_pose_timer;
 
     // std::vector<ros::ServiceClient> client_;
+    // ros::ServiceClient client_;
 
     // Listen for drive commands
     std::vector<ros::Subscriber> drive_sub_;
@@ -136,7 +138,8 @@ class RacecarSimulator {
                             // step(now 0.025)
     bool synchronized_mode_;
     // double sync_time_;
-    // ros::ServiceServer observation_service_;
+    ros::ServiceServer reset_service_;
+    ros::ServiceServer observation_server_;
     // Publish a scan, odometry, and imu data
     bool broadcast_transform;
     std::vector<ros::Publisher> scan_pub_;
@@ -247,6 +250,9 @@ class RacecarSimulator {
         n.getParam("random_pose", random_pose_);
         n.getParam("control_mode", control_mode_);
 
+        // synchoronized mode
+        n.getParam("synchronized_mode", synchronized_mode_);
+
         is_collision_ = false;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         if (random_pose_) {
@@ -336,6 +342,9 @@ class RacecarSimulator {
             observation_sub_ =
                 n.subscribe(drive_topic + std::to_string(0), 1,
                             &RacecarSimulator::ObservationCallback, this);
+            // observation_server_ = n.advertiseService(
+            //     "/observation_service", &RacecarSimulator::ObservationCallback,
+            //     this);
         } else {
             // Start a timer to output the pose
             update_pose_timer =
@@ -353,11 +362,14 @@ class RacecarSimulator {
             opp_pose_rviz_topic, 1, &RacecarSimulator::opp_pose_rviz_callback,
             this); // opponent vehicle pose
 
+        reset_service_ = n.advertiseService(
+            "/reset_service", &RacecarSimulator::reset_server, this);
+
         // Start a subscriber to listen to drive commands
         for (int i = 0; i < obj_num_; i++) {
             ros::Subscriber drive_sub, pose_sub;
             ros::Publisher scan_pub, odom_pub, imu_pub;
-            ros::ServiceClient client;
+            // ros::ServiceClient client;
             if (synchronized_mode_) {
                 if (i != 0) {
                     drive_sub =
@@ -414,8 +426,9 @@ class RacecarSimulator {
         obs_sub = n.subscribe("/clicked_point", 1,
                               &RacecarSimulator::obs_callback, this);
 
-        reset_sub =
-            n.subscribe("/RL_reset", 1, &RacecarSimulator::reset_callback, this);
+        // reset_sub =
+        //     n.subscribe("/RL_reset", 1, &RacecarSimulator::reset_callback,
+        //     this);
 
         // get collision safety margin
         // n.getParam("coll_threshold", thresh);
@@ -1051,8 +1064,8 @@ class RacecarSimulator {
         add_obs(ind);
     }
 
-    void reset_callback(const std_msgs::Bool &msg) {
-        std::cout<<(msg.data);
+    bool reset_server(control_msgs::reset::Request &req,
+                      control_msgs::reset::Response &res) {
         fprintf(stderr, "reset callback \n");
         sleep(2.);
         RestartSimulation();
@@ -1070,8 +1083,31 @@ class RacecarSimulator {
 
             // TODO: make and publish IMU message
             pub_imu(timestamp0, i);
+            return true;
         }
     }
+
+    // void reset_callback(const std_msgs::Bool &msg) {
+    //     std::cout<<(msg.data);
+    //     fprintf(stderr, "reset callback \n");
+    //     sleep(2.);
+    //     RestartSimulation();
+    //     ros::Time timestamp0 = ros::Time::now();
+
+    //     for (size_t i = 0; i < obj_num_; i++) {
+    //         pub_pose_transform(timestamp0, i);
+
+    //         /// Publish the steering angle as a transformation so the
+    //         /// wheels
+    //         pub_steer_ang_transform(timestamp0, i);
+
+    //         // Make an odom message as well and publish it
+    //         pub_odom(timestamp0, i);
+
+    //         // TODO: make and publish IMU message
+    //         pub_imu(timestamp0, i);
+    //     }
+    // }
 
     // void pose_callback(const geometry_msgs::PoseStamped &msg) {
     //     state_[i].x = msg.pose.position.x;
