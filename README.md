@@ -24,7 +24,14 @@ you can set initial pose of 1'th vehicle with "2D Pose Estimate"
 
 you can set initial pose of 2'th vehicle with "2D Nav Goal"
 
-https://github.com/kms8527/F1tenth_RL_ros_simulator/assets/44738230/4d821686-e0af-46bb-9e2e-3dd8d9a6bc88
+
+if collision occurs,it can restart.
+but obstacles is not detected in 2D lidar, it recevices data directly using odom topic
+
+
+
+https://github.com/kms8527/F1tenth_RL_ros_simulator/assets/44738230/f87b52d7-4ed2-44cb-9337-e8501fed0437
+
 
 
 
