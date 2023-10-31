@@ -32,7 +32,9 @@
 #include <fstream>
 #include <functional>
 // #include <racecar_simulator/observation.h>
+#include "control_msgs/CarState.h"
 #include "control_msgs/reset.h"
+#include "control_msgs/sync_control.h"
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float32MultiArray.h>
 
@@ -179,12 +181,15 @@ class RacecarSimulator {
 
     // for collision check
     bool is_collision_;
+    std::vector<bool> obj_collision_;
     bool random_pose_;
     std::vector<geometry_msgs::PointStamped> global_path_;
     std::string control_mode_;
 
     std::vector<std::vector<geometry_msgs::Point>> obs_corner_pts_;
-    std::vector<double> min_scan_distances_;
+    std::vector<double>
+        min_scan_distances_; // minumum distance between wall and obj for each
+                             // obstacle same size with obj_num
 
   public:
     RacecarSimulator() : im_server("racecar_sim") {
@@ -323,6 +328,8 @@ class RacecarSimulator {
             desired_speed_.push_back(0.0);
             desired_steer_ang_.push_back(0.0);
             desired_accel_.push_back(0.0);
+
+            obj_collision_.push_back(false);
         }
 
         // Initialize a simulator of the laser scanner
@@ -336,15 +343,15 @@ class RacecarSimulator {
         if (synchronized_mode_) {
             // sync_time_ = 0.;
 
-            // observation_service_ = n.advertiseService(
-            //     "/observation_service",
-            //     &RacecarSimulator::ObservationServiceServer, this);
-            observation_sub_ =
-                n.subscribe(drive_topic + std::to_string(0), 1,
-                            &RacecarSimulator::ObservationCallback, this);
+            observation_server_ =
+                n.advertiseService("/sync_control_service",
+                                   &RacecarSimulator::SyncControlServer, this);
+            // observation_sub_ =
+            //     n.subscribe(drive_topic + std::to_string(0), 1,
+            //                 &RacecarSimulator::ObservationCallback, this);
             // observation_server_ = n.advertiseService(
-            //     "/observation_service", &RacecarSimulator::ObservationCallback,
-            //     this);
+            //     "/observation_service",
+            //     &RacecarSimulator::ObservationCallback, this);
         } else {
             // Start a timer to output the pose
             update_pose_timer =
@@ -376,7 +383,8 @@ class RacecarSimulator {
                         n.subscribe<ackermann_msgs::AckermannDriveStamped>(
                             drive_topic + std::to_string(i), 1,
                             boost::bind(&RacecarSimulator::drive_callback, this,
-                                        _1, i));
+                                        _1, i)); // TODO : now we can
+                                                 // syncrhonize only to 0 agent
                 }
 
             } else {
@@ -416,6 +424,7 @@ class RacecarSimulator {
             scan_pub_.push_back(scan_pub);
             odom_pub_.push_back(odom_pub);
             imu_pub_.push_back(imu_pub);
+            obs_corner_pts_.push_back(std::vector<geometry_msgs::Point>());
         }
 
         // Start a subscriber to listen to new maps
@@ -552,6 +561,8 @@ class RacecarSimulator {
     void RestartSimulation() {
         // sync_time_ = 0.0;
         clearvector();
+        for (size_t i = 0; i < obj_collision_.size(); i++)
+            obj_collision_[i] = false;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         if (random_pose_)
             random_pose_array =
@@ -614,10 +625,137 @@ class RacecarSimulator {
         // added_obs.push_back(ind);
         // add_obs(ind);
     }
+    bool SyncControlServer(control_msgs::sync_control::Request &req,
+                           control_msgs::sync_control::Response &res) {
+        desired_accel_[0] = req.control_input.data[0];
+        desired_steer_ang_[0] = req.control_input.data[1];
+
+        // obs_corner_pts_.clear();
+        min_scan_distances_.clear();
+
+        // Update the pose
+        ros::Time timestamp = ros::Time::now();
+        // fprintf(stderr, "timestamp : %f\n", timestamp.toSec());
+        // simulate P controller
+        for (int i = 0; i < obj_num_; i++) {
+
+            if (control_mode_ == "v") {
+                if (std::isnan(desired_speed_[i]))
+                    desired_speed_[i] = 0.0;
+                double accel = compute_accel(desired_speed_[i], i);
+                set_accel(desired_accel_[i], i);
+            } else if (control_mode_ == "a") {
+                if (std::isnan(desired_accel_[i]))
+                    desired_accel_[i] = 0.0;
+                set_accel(desired_accel_[i], i);
+            } else
+                ROS_INFO("control mode error");
+            set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i), i);
+
+            // double current_seconds = timestamp.toSec();
+            if (!obj_collision_[i]) {
+                state_[i] = STKinematics::update(state_[i], accel_[i],
+                                                 steer_angle_vel_[i], params_,
+                                                 sync_time_step_);
+                state_[i].velocity = std::min(
+                    std::max(state_[i].velocity, -max_speed_), max_speed_);
+                state_[i].steer_angle = std::min(
+                    std::max(state_[i].steer_angle, -max_steering_angle_),
+                    max_steering_angle_);
+            }
+
+            // previous_seconds = current_seconds;
+
+            /// Publish the pose as a transformation
+            pub_pose_transform(timestamp, i);
+
+            /// Publish the steering angle as a transformation so the wheels
+            pub_steer_ang_transform(timestamp, i);
+
+            // Make an odom message as well and publish it
+            pub_odom(timestamp, i);
+
+            // TODO: make and publish IMU message
+            pub_imu(timestamp, i);
+
+            /// KEEP in sim
+            // If we have a map, perform a scan
+            if (map_exists) {
+                // Get the pose of the lidar, given the pose of base link
+                // (base link is the center of the rear axle)
+                Pose2D scan_pose;
+                scan_pose.x = state_[i].x + scan_distance_to_base_link_ *
+                                                std::cos(state_[i].theta);
+                scan_pose.y = state_[i].y + scan_distance_to_base_link_ *
+                                                std::sin(state_[i].theta);
+                scan_pose.theta = state_[i].theta;
+
+                getConerPoint(i);
+
+                // Update the oppenent vehicle pose to include in scan
+                // UpdateObstaclePosition(i);
+
+                // Compute the scan from the lidar
+                std::vector<double> scan = scan_simulator_.scan(
+                    scan_pose); // scan : distance from lidar to obstacle
+
+                // Convert to float
+                std::vector<float> scan_float(scan.size());
+                for (size_t idx = 0; idx < scan.size(); idx++)
+                    scan_float[idx] = scan[idx];
+
+                // TTC Calculations are done here so the car can be halted in
+                // the simulator: to reset TTC
+                bool no_collision = true;
+                double min_scan =
+                    *std::min_element(scan_float.begin(), scan_float.end());
+                min_scan_distances_.push_back(min_scan);
+
+                // Publish the laser message
+                sensor_msgs::LaserScan scan_msg;
+                scan_msg.header.stamp = timestamp;
+                scan_msg.header.frame_id = scan_frame + std::to_string(i);
+                scan_msg.angle_min = -scan_simulator_.get_field_of_view() / 2.;
+                scan_msg.angle_max = scan_simulator_.get_field_of_view() / 2.;
+                scan_msg.angle_increment =
+                    scan_simulator_.get_angle_increment();
+                scan_msg.range_max = 100;
+                scan_msg.ranges = scan_float;
+                scan_msg.intensities = scan_float;
+                scan_pub_[i].publish(scan_msg);
+
+                // Publish a transformation between base link and laser
+                pub_laser_link_transform(timestamp, i);
+            }
+
+            control_msgs::CarState state;
+            state.x = state_[i].x;
+            state.y = state_[i].y;
+            state.theta = state_[i].theta;
+            state.velocity = state_[i].velocity;
+            state.steer_angle = state_[i].steer_angle;
+            state.angular_velocity = state_[i].angular_velocity;
+            state.slip_angle = state_[i].slip_angle;
+
+            res.state.push_back(state);
+        }
+
+        bool curr_collision = checkAllCollisions(obs_corner_pts_);
+        res.collision = curr_collision;
+
+        if (curr_collision != is_collision_) {
+            is_collision_ = curr_collision;
+            std_msgs::Bool is_collision;
+            is_collision.data = is_collision_;
+            if (is_collision_)
+                collision_pub_.publish(is_collision);
+        }
+        return true;
+    }
 
     void ObservationCallback(
         const ackermann_msgs::AckermannDriveStampedConstPtr &msg) {
-        obs_corner_pts_.clear();
+        // obs_corner_pts_.clear();
         min_scan_distances_.clear();
         // sync_time_ += 1.0;
 
@@ -628,7 +766,7 @@ class RacecarSimulator {
 
         // Update the pose
         ros::Time timestamp = ros::Time::now();
-        fprintf(stderr, "timestamp : %f\n", timestamp.toSec());
+        // fprintf(stderr, "timestamp : %f\n", timestamp.toSec());
         // simulate P controller
         for (int i = 0; i < obj_num_; i++) {
             if (control_mode_ == "v") {
@@ -750,7 +888,7 @@ class RacecarSimulator {
 
     void update_pose(const ros::TimerEvent &) {
 
-        obs_corner_pts_.clear();
+        // obs_corner_pts_.clear();
         min_scan_distances_.clear();
         // simulate P controller
         for (int i = 0; i < obj_num_; i++) {
@@ -938,7 +1076,7 @@ class RacecarSimulator {
         corner_pts.push_back(p3);
         corner_pts.push_back(p4);
 
-        obs_corner_pts_.push_back(corner_pts);
+        obs_corner_pts_[i] = corner_pts;
     }
 
     /// ---------------------- GENERAL HELPER FUNCTIONS ----------------------
@@ -1067,7 +1205,7 @@ class RacecarSimulator {
     bool reset_server(control_msgs::reset::Request &req,
                       control_msgs::reset::Response &res) {
         fprintf(stderr, "reset callback \n");
-        sleep(2.);
+        // sleep(2.);
         RestartSimulation();
         ros::Time timestamp0 = ros::Time::now();
 
@@ -1083,8 +1221,22 @@ class RacecarSimulator {
 
             // TODO: make and publish IMU message
             pub_imu(timestamp0, i);
-            return true;
         }
+
+        for (size_t i = 0; i < obj_num_; i++) {
+            control_msgs::CarState state;
+            state.x = state_[i].x;
+            state.y = state_[i].y;
+            state.theta = state_[i].theta;
+            state.velocity = state_[i].velocity;
+            state.steer_angle = state_[i].steer_angle;
+            state.angular_velocity = state_[i].angular_velocity;
+            state.slip_angle = state_[i].slip_angle;
+
+            res.state.push_back(state);
+        }
+
+        return true;
     }
 
     // void reset_callback(const std_msgs::Bool &msg) {
@@ -1337,19 +1489,32 @@ class RacecarSimulator {
     bool checkAllCollisions(
         const std::vector<std::vector<geometry_msgs::Point>> &obs_corner_pts) {
         double thresh = width_ / 2.0;
-
-        for (size_t i = 0; i < min_scan_distances_.size(); i++) {
+        for (size_t i = 0; i < min_scan_distances_.size();
+             i++) { // wall collision check
             if (min_scan_distances_[i] < thresh) {
                 fprintf(stderr, "Collision detected\n");
-                return true;
+                if (i ==
+                    0) // collision reset occurs only when ego vehicle collides
+                    return true; // Collision detected between two vehicles
+                else {
+                    obj_collision_[i] = true;
+                }
             }
         }
 
         for (size_t i = 0; i < obs_corner_pts.size(); i++) {
             for (size_t j = i + 1; j < obs_corner_pts.size(); j++) {
-                if (checkCollision(obs_corner_pts[i], obs_corner_pts[j])) {
+                if (checkCollision(obs_corner_pts[i],
+                                   obs_corner_pts[j])) { // vehicle to vehicle
+                                                         // collision check
                     fprintf(stderr, "Collision detected\n");
-                    return true; // Collision detected between two vehicles
+                    if (i == 0) // collision reset occurs only when ego vehicle
+                                // collides
+                        return true; // Collision detected between two vehicles
+                    else {
+                        obj_collision_[i] = true;
+                        obj_collision_[j] = true;
+                    }
                 }
             }
         }
