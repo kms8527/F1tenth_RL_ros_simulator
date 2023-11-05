@@ -564,9 +564,31 @@ class RacecarSimulator {
         for (size_t i = 0; i < obj_collision_.size(); i++)
             obj_collision_[i] = false;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
+        std::vector<geometry_msgs::PointStamped> fixed_pose_array;
         if (random_pose_)
             random_pose_array =
                 sampleWithoutReplacement(global_path_, obj_num_);
+        else {
+            geometry_msgs::PointStamped msg;
+            msg.point.x = 0.484;
+            msg.point.y = -0.557;
+            msg.point.z = -1.203;
+            fixed_pose_array.push_back(msg);
+
+            msg.point.x = 5.656;
+            msg.point.y = -3.4;
+            msg.point.z = 1.942;
+            fixed_pose_array.push_back(msg);
+
+            msg.point.x = -3.261;
+            msg.point.y = -12.916;
+            msg.point.z = 0.288;
+            fixed_pose_array.push_back(msg);
+            
+            // the number of fixed pose should be same with obj_num_
+            assert(fixed_pose_array.size() == obj_num_);
+
+        }
 
         // Initialize car state and driving commands
         for (int i = 0; i < obj_num_; i++) {
@@ -582,9 +604,9 @@ class RacecarSimulator {
                 state_.push_back(state);
 
             } else {
-                CarState state = {.x = i,
-                                  .y = i,
-                                  .theta = 0,
+                CarState state = {.x = fixed_pose_array[i].point.x,
+                                  .y = fixed_pose_array[i].point.y,
+                                  .theta = fixed_pose_array[i].point.z,
                                   .velocity = 0,
                                   .steer_angle = 0.0,
                                   .angular_velocity = 0.0,

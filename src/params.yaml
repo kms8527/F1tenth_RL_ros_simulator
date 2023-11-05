@@ -1,5 +1,5 @@
 #obj_num
-obj_num: 3
+obj_num: 1
 # obstacle parameters
 obstacle_size: 1
 
@@ -16,7 +16,7 @@ max_steering_angle: 0.4189 # radians
 max_accel: 8. # meters/second^2
 max_decel: 20 # meters/second^2
 max_steering_vel: 5.0 # radians/second
-friction_coeff: 1. # - (complete estimate)
+friction_coeff: 1.2 # - (complete estimate)
 height_cg: 0.08255 # m (roughly measured to be 3.25 in)
 l_cg2rear: 0.17145 # m (decently measured to be 6.75 in)
 l_cg2front: 0.15875 # m (decently measured to be 6.25 in)
