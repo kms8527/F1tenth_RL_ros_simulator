@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Group for racecar0 -->
+  <group ns="racecar0">
+    <arg name="racecar_xacro" default="$(find racecar_simulator)/racecar0.xacro"/>
+    <param name="robot_description" command="xacro '$(arg racecar_xacro)' prefix:=0"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  </group>
+
+  <!-- Group for racecar1 -->
+  <group ns="racecar1">
+    <arg name="racecar_xacro" default="$(find racecar_simulator)/racecar1.xacro"/>
+    <param name="robot_description" command="xacro '$(arg racecar_xacro)' prefix:=1"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  </group>
+
+  <!-- Group for racecar1 -->
+  <group ns="racecar2">
+    <arg name="racecar_xacro" default="$(find racecar_simulator)/racecar2.xacro"/>
+    <param name="robot_description" command="xacro '$(arg racecar_xacro)' prefix:=2"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  </group>
+  
+    <group ns="racecar3">
+    <arg name="racecar_xacro" default="$(find racecar_simulator)/racecar3.xacro"/>
+    <param name="robot_description" command="xacro '$(arg racecar_xacro)' prefix:=3"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  </group>
+  
+    <group ns="racecar4">
+    <arg name="racecar_xacro" default="$(find racecar_simulator)/racecar4.xacro"/>
+    <param name="robot_description" command="xacro '$(arg racecar_xacro)' prefix:=4"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  </group>
+  
+    <group ns="racecar5">
+    <arg name="racecar_xacro" default="$(find racecar_simulator)/racecar5.xacro"/>
+    <param name="robot_description" command="xacro '$(arg racecar_xacro)' prefix:=5"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  </group>
+  
+  <!-- Repeat similar groups for other racecars as needed -->
+
+</launch>
+
