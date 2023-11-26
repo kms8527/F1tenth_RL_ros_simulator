@@ -118,6 +118,7 @@ class RacecarSimulator {
 
     // A timer to update the pose
     ros::Timer update_pose_timer;
+    double iter_;
 
     // std::vector<ros::ServiceClient> client_;
     // ros::ServiceClient client_;
@@ -153,6 +154,9 @@ class RacecarSimulator {
 
     // collision publisher
     ros::Publisher collision_pub_;
+
+    // ros time publisher
+    ros::Publisher time_pub_;
 
     // keep an original map for obstacles
     nav_msgs::OccupancyGrid original_map_;
@@ -411,6 +415,8 @@ class RacecarSimulator {
 
             // colision publisher
             collision_pub_ = n.advertise<std_msgs::Bool>("/collision", 1);
+            time_pub_ = n.advertise<visualization_msgs::Marker>(
+                "visualization_marker", 1);
 
             // std::string service_name = "/collision_service" +
             // std::to_string(i); fprintf(stderr, "%s\n", service_name.c_str());
@@ -533,6 +539,39 @@ class RacecarSimulator {
         ROS_INFO("Simulator constructed.");
     }
 
+    void visualizeTimeInRviz(double time) {
+        visualization_msgs::Marker marker;
+
+        // 마커 설정
+        marker.header.frame_id = "map";
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "time_visualization";
+        marker.id = 0;
+        marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+        marker.action = visualization_msgs::Marker::ADD;
+
+        // 시간 위치 및 스케일 설정
+        marker.pose.position.x = -2.313;
+        marker.pose.position.y = -4.698;
+        marker.pose.position.z = 1.0;
+        marker.scale.z = 1.0; // 텍스트 크기
+
+        // 시간을 문자열로 변환 (최대 소수점 3자리)
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(3) << time;
+        marker.text = "Sim Time : " + ss.str();
+
+        // 색상 및 기간 설정
+        marker.color.r = 1.0f;
+        marker.color.g = 0.5f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0;
+        marker.lifetime = ros::Duration();
+
+        // 마커 발행
+        time_pub_.publish(marker);
+    }
+
     void clearvector() {
         state_.clear();
         accel_.clear();
@@ -561,6 +600,7 @@ class RacecarSimulator {
     void RestartSimulation() {
         // sync_time_ = 0.0;
         clearvector();
+        iter_ = 0;
         for (size_t i = 0; i < obj_collision_.size(); i++)
             obj_collision_[i] = false;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
@@ -584,10 +624,9 @@ class RacecarSimulator {
             msg.point.y = -12.916;
             msg.point.z = 0.288;
             fixed_pose_array.push_back(msg);
-            
+
             // the number of fixed pose should be same with obj_num_
             assert(fixed_pose_array.size() == obj_num_);
-
         }
 
         // Initialize car state and driving commands
@@ -659,6 +698,8 @@ class RacecarSimulator {
         ros::Time timestamp = ros::Time::now();
         // fprintf(stderr, "timestamp : %f\n", timestamp.toSec());
         // simulate P controller
+        double current_seconds = timestamp.toSec();
+        
         for (int i = 0; i < obj_num_; i++) {
 
             if (control_mode_ == "v") {
@@ -674,7 +715,6 @@ class RacecarSimulator {
                 ROS_INFO("control mode error");
             set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i), i);
 
-            // double current_seconds = timestamp.toSec();
             if (!obj_collision_[i]) {
                 state_[i] = STKinematics::update(state_[i], accel_[i],
                                                  steer_angle_vel_[i], params_,
@@ -761,10 +801,12 @@ class RacecarSimulator {
 
             res.state.push_back(state);
         }
+        iter_++;
+        visualizeTimeInRviz(iter_ * sync_time_step_);
 
         bool curr_collision = checkAllCollisions(obs_corner_pts_);
         res.collision = curr_collision;
-
+        
         if (curr_collision != is_collision_) {
             is_collision_ = curr_collision;
             std_msgs::Bool is_collision;
