@@ -9,7 +9,7 @@ wheelbase: 0.3302 # meters
 width: 0.2032 # meters
 
 # Limits on the speed and steering angle
-max_speed: 12. #  meters/second
+max_speed: 9.9 #  meters/second
 max_steering_angle: 0.4189 # radians
 max_accel: 4.00 # meters/second^2
 max_decel: 6.00 # meters/second^2
@@ -120,11 +120,9 @@ scan_frame: "laser"
 broadcast_transform: true
 # init pose
 random_pose: true
-#waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Budapest/Budapest_raceline.csv"
-waypoint_file: "/home/a/racecar_simulator/src/centerline_waypoints.csv"
-#waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Shanghai/Shanghai_centerline.csv"
+
+waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Shanghai/Shanghai_centerline.csv"
 #v : velocity control , a : accel control
 control_mode: "a"
 synchronized_mode: false #MPC의 synchronized_mode_와 같아야함.
 sync_time_step: 0.025 # MPC Ts_와 일치해야함.
-restart_mode: false

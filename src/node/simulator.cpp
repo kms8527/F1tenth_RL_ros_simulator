@@ -79,6 +79,46 @@ void computeYaw(std::vector<geometry_msgs::PointStamped> &global_path) {
     }
 }
 
+std::vector<geometry_msgs::PointStamped> createRandomizedPath(
+    const std::vector<geometry_msgs::PointStamped> &global_path) {
+    std::vector<geometry_msgs::PointStamped> randomized_path;
+    randomized_path.reserve(global_path.size());
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(-0.4,
+                                         0.4); // -0.25 ~ 0.25 사이의 랜덤 값
+
+    for (size_t i = 0; i < global_path.size(); ++i) {
+        // 탄젠트(접선) 벡터 계산: 여기서는 간단한 예시로 다음 포인트 방향 사용
+        // 실제로는 스플라인 등을 이용하여 정확한 탄젠트 벡터를 계산해야 함
+        geometry_msgs::Vector3 tangent;
+        if (i < global_path.size() - 1) {
+            tangent.x = global_path[i + 1].point.x - global_path[i].point.x;
+            tangent.y = global_path[i + 1].point.y - global_path[i].point.y;
+        } else {
+            tangent.x = global_path[i].point.x - global_path[i - 1].point.x;
+            tangent.y = global_path[i].point.y - global_path[i - 1].point.y;
+        }
+
+        // 노멀(수직) 벡터 계산
+        geometry_msgs::Vector3 normal;
+        normal.x = -tangent.y;
+        normal.y = tangent.x;
+        normal.z = 0;
+
+        // 랜덤 오프셋 생성 및 적용
+        double randomOffset = dis(gen);
+        geometry_msgs::PointStamped new_point = global_path[i];
+        new_point.point.x += normal.x * randomOffset;
+        new_point.point.y += normal.y * randomOffset;
+
+        randomized_path.push_back(new_point);
+    }
+
+    return randomized_path;
+}
+
 class RacecarSimulator {
   private:
     // A ROS node
@@ -101,6 +141,7 @@ class RacecarSimulator {
     // The car state and parameters
     std::vector<CarState> state_;
     double previous_seconds;
+    double init_time_;
     double scan_distance_to_base_link_;
     double max_speed_, max_steering_angle_;
     double max_accel_, max_steering_vel_, max_decel_;
@@ -185,6 +226,7 @@ class RacecarSimulator {
 
     // for collision check
     bool is_collision_;
+    bool restart_mode_;
     std::vector<bool> obj_collision_;
     bool random_pose_;
     std::vector<geometry_msgs::PointStamped> global_path_;
@@ -261,6 +303,7 @@ class RacecarSimulator {
 
         // synchoronized mode
         n.getParam("synchronized_mode", synchronized_mode_);
+        n.getParam("restart_mode", restart_mode_);
 
         is_collision_ = false;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
@@ -268,6 +311,7 @@ class RacecarSimulator {
             std::ifstream read_file;
             std::string waypoint_file;
             n.getParam("waypoint_file", waypoint_file);
+            std::cout << "waypoint file : " << waypoint_file << std::endl;
             read_file.open(waypoint_file.c_str());
 
             if (read_file.is_open()) {
@@ -302,6 +346,8 @@ class RacecarSimulator {
                 sampleWithoutReplacement(global_path_, obj_num_);
         }
 
+        std::random_device rd;
+        std::mt19937 gen(rd());
         // Initialize car state and driving commands
         for (int i = 0; i < obj_num_; i++) {
             if (random_pose_) {
@@ -392,6 +438,7 @@ class RacecarSimulator {
                 }
 
             } else {
+                init_time_ = ros::Time::now().toSec();
                 drive_sub = n.subscribe<ackermann_msgs::AckermannDriveStamped>(
                     drive_topic + std::to_string(i), 1,
                     boost::bind(&RacecarSimulator::drive_callback, this, _1,
@@ -605,25 +652,34 @@ class RacecarSimulator {
             obj_collision_[i] = false;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         std::vector<geometry_msgs::PointStamped> fixed_pose_array;
-        if (random_pose_)
+        std::vector<geometry_msgs::PointStamped> randomized_path;
+        if (random_pose_) {
+            randomized_path = createRandomizedPath(global_path_);
             random_pose_array =
-                sampleWithoutReplacement(global_path_, obj_num_);
+                sampleWithoutReplacement(randomized_path, obj_num_);
+        }
+
         else {
             geometry_msgs::PointStamped msg;
+
             msg.point.x = 0.484;
             msg.point.y = -0.557;
             msg.point.z = -1.203;
+
+            // msg.point.x = 0.260;
+            // msg.point.y = -0.212;
+            // msg.point.z = -0.671;
             fixed_pose_array.push_back(msg);
 
-            msg.point.x = 5.656;
-            msg.point.y = -3.4;
-            msg.point.z = 1.942;
-            fixed_pose_array.push_back(msg);
+            // msg.point.x = 5.656;
+            // msg.point.y = -3.4;
+            // msg.point.z = 1.942;
+            // fixed_pose_array.push_back(msg);
 
-            msg.point.x = -3.261;
-            msg.point.y = -12.916;
-            msg.point.z = 0.288;
-            fixed_pose_array.push_back(msg);
+            // msg.point.x = -3.261;
+            // msg.point.y = -12.916;
+            // msg.point.z = 0.288;
+            // fixed_pose_array.push_back(msg);
 
             // the number of fixed pose should be same with obj_num_
             assert(fixed_pose_array.size() == obj_num_);
@@ -699,7 +755,7 @@ class RacecarSimulator {
         // fprintf(stderr, "timestamp : %f\n", timestamp.toSec());
         // simulate P controller
         double current_seconds = timestamp.toSec();
-        
+
         for (int i = 0; i < obj_num_; i++) {
 
             if (control_mode_ == "v") {
@@ -805,8 +861,31 @@ class RacecarSimulator {
         visualizeTimeInRviz(iter_ * sync_time_step_);
 
         bool curr_collision = checkAllCollisions(obs_corner_pts_);
+        // double g = 9.81;
+        // double rear_val = g * params_.l_r - desired_accel_[0] * params_.h_cg;
+        // double front_val = g * params_.l_f + desired_steer_ang_[0] *
+        // params_.h_cg;
+
+        // double ay =
+        //     state_[0].velocity *
+        //     (params_.friction_coeff / (state_[0].velocity * (params_.l_r +
+        //     params_.l_f))) * (params_.cs_f * desired_steer_ang_[0] * rear_val
+        //     -
+        //      state_[0].slip_angle * (params_.cs_r * front_val + params_.cs_f
+        //      * rear_val) + (state_[0].angular_velocity / state_[0].velocity)
+        //      * (params_.cs_r * params_.l_r * front_val -
+        //                                      params_.cs_f * params_.l_f *
+        //                                      rear_val));
+        // if(isnan(ay))
+        //     ay = 0.0;
+        // if (fabs(ay) > g * params_.friction_coeff) {
+        //     curr_collision = true;
+        //     std::cout << " ay exceed limit \n"
+        //                 << " ay : " << ay << std::endl;
+        // }
+
         res.collision = curr_collision;
-        
+
         if (curr_collision != is_collision_) {
             is_collision_ = curr_collision;
             std_msgs::Bool is_collision;
@@ -952,8 +1031,10 @@ class RacecarSimulator {
 
     void update_pose(const ros::TimerEvent &) {
 
-        // obs_corner_pts_.clear();
+        obs_corner_pts_.clear();
         min_scan_distances_.clear();
+        ros::Time timestamp = ros::Time::now();
+        double current_seconds = timestamp.toSec();
         // simulate P controller
         for (int i = 0; i < obj_num_; i++) {
             if (control_mode_ == "v") {
@@ -970,8 +1051,6 @@ class RacecarSimulator {
             set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i), i);
 
             // Update the pose
-            ros::Time timestamp = ros::Time::now();
-            double current_seconds = timestamp.toSec();
             state_[i] = STKinematics::update(
                 state_[i], accel_[i], steer_angle_vel_[i], params_,
                 current_seconds - previous_seconds);
@@ -1072,6 +1151,7 @@ class RacecarSimulator {
                 pub_laser_link_transform(timestamp, i);
             }
         }
+        visualizeTimeInRviz(current_seconds - init_time_);
 
         bool curr_collision = checkAllCollisions(obs_corner_pts_);
         if (curr_collision != is_collision_) {
@@ -1080,7 +1160,7 @@ class RacecarSimulator {
             is_collision.data = is_collision_;
             if (is_collision_)
                 collision_pub_.publish(is_collision);
-            if (is_collision_) {
+            if (is_collision_ && restart_mode_) {
                 RestartSimulation();
             }
         }
@@ -1350,6 +1430,13 @@ class RacecarSimulator {
             &temp_pose, [](geometry_msgs::PoseStamped *) {});
         pose_callback(shared_pose, 0);
         state_[0].velocity = 0.0;
+        state_[0].angular_velocity = 0.0;
+        state_[0].slip_angle = 0.0;
+
+        desired_accel_[0] = 0.0;
+        desired_steer_ang_[0] = 0.0;
+        desired_speed_[0] = 0.0;
+        
         // pose_callback(&temp_pose, i);
     }
 

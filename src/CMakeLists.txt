@@ -13,7 +13,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 find_package(OpenCV)
 find_package(Eigen3)
-
+find_package(control_msgs)
 ######################################
 # Compile the library >
 ######################################
