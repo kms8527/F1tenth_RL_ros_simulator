@@ -93,6 +93,7 @@ map_topic: "/map"
 distance_transform_topic: "/dt"
 scan_topic: "/scan"
 pose_topic: "/pose"
+state_topic: "/state"
 odom_topic: "/odom"
 imu_topic: "/imu"
 pose_rviz_topic: "/initialpose"
@@ -126,4 +127,4 @@ waypoint_file: "/home/a/racecar_simulator/src/maps/c_track_path.csv"
 #v : velocity control , a : accel control
 control_mode: "a"
 synchronized_mode: false #MPC의 synchronized_mode_와 같아야함.
-sync_time_step: 0.025 # MPC Ts_와 일치해야함.
+sync_time_step: 0.001 # MPC Ts_와 일치해야함.

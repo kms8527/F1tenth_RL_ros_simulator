@@ -187,6 +187,7 @@ class RacecarSimulator {
     // Publish a scan, odometry, and imu data
     bool broadcast_transform;
     std::vector<ros::Publisher> scan_pub_;
+    std::vector<ros::Publisher> state_pub_;
     std::vector<ros::Publisher> odom_pub_;
     std::vector<ros::Publisher> imu_pub_;
 
@@ -247,12 +248,13 @@ class RacecarSimulator {
         previous_seconds = ros::Time::now().toSec();
 
         // Get the topic names
-        std::string drive_topic, map_topic, scan_topic, pose_topic,
+        std::string drive_topic, map_topic, scan_topic, pose_topic, state_topic,
             pose_rviz_topic, opp_pose_rviz_topic, odom_topic, imu_topic;
         n.getParam("drive_topic", drive_topic);
         n.getParam("map_topic", map_topic);
         n.getParam("scan_topic", scan_topic);
         n.getParam("pose_topic", pose_topic);
+        n.getParam("state_topic", state_topic);
         n.getParam("odom_topic", odom_topic);
         n.getParam("pose_rviz_topic", pose_rviz_topic);
         n.getParam("opp_pose_rviz_topic", opp_pose_rviz_topic);
@@ -425,7 +427,7 @@ class RacecarSimulator {
         // Start a subscriber to listen to drive commands
         for (int i = 0; i < obj_num_; i++) {
             ros::Subscriber drive_sub, pose_sub;
-            ros::Publisher scan_pub, odom_pub, imu_pub;
+            ros::Publisher scan_pub, odom_pub, imu_pub, state_pub;
             // ros::ServiceClient client;
             if (synchronized_mode_) {
                 if (i != 0) {
@@ -444,6 +446,9 @@ class RacecarSimulator {
                     boost::bind(&RacecarSimulator::drive_callback, this, _1,
                                 i));
             }
+            state_pub = n.advertise<control_msgs::CarState>(
+                state_topic + std::to_string(i), 1);
+
             pose_sub = n.subscribe<geometry_msgs::PoseStamped>(
                 pose_topic + std::to_string(i), 1,
                 boost::bind(&RacecarSimulator::pose_callback, this, _1, i));
@@ -472,6 +477,7 @@ class RacecarSimulator {
 
             // client_.push_back(client);
             drive_sub_.push_back(drive_sub);
+            state_pub_.push_back(state_pub);
             // pose_sub_.push_back(pose_sub);
             // pose_rviz_sub_.push_back(pose_rviz_sub);
             scan_pub_.push_back(scan_pub);
@@ -1068,6 +1074,8 @@ class RacecarSimulator {
             /// Publish the steering angle as a transformation so the wheels
             pub_steer_ang_transform(timestamp, i);
 
+            pub_state(timestamp, i);
+
             // Make an odom message as well and publish it
             pub_odom(timestamp, i);
 
@@ -1185,6 +1193,22 @@ class RacecarSimulator {
         // }
 
     } // end of update_pose
+
+    void pub_state(ros::Time timestamp, size_t i) {
+        control_msgs::CarState state;
+        // state.header.stamp = timestamp;
+        // state.header.frame_id = "state"
+
+        state.x = state_[i].x;
+        state.y = state_[i].y;
+        state.theta = state_[i].theta;
+        state.velocity = state_[i].velocity;
+        state.steer_angle = state_[i].steer_angle;
+        state.angular_velocity = state_[i].angular_velocity;
+        state.slip_angle = state_[i].slip_angle;
+
+        state_pub_[i].publish(state);
+    }
 
     /**
      * @brief Get the Coner Point object
@@ -1436,7 +1460,7 @@ class RacecarSimulator {
         desired_accel_[0] = 0.0;
         desired_steer_ang_[0] = 0.0;
         desired_speed_[0] = 0.0;
-        
+
         // pose_callback(&temp_pose, i);
     }
 
