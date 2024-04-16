@@ -141,6 +141,6 @@ random_pose: true
 waypoint_file: "/home/a/racecar_simulator/src/centerline_waypoints.csv"
 #v : velocity control , a : accel control
 control_mode: "a"
-synchronized_mode: false #MPC의 synchronized_mode_와 같아야함.
+synchronized_mode: true #MPC의 synchronized_mode_와 같아야함.
 sync_time_step: 0.025 # MPC Ts_와 일치해야함.
 restart_mode: false

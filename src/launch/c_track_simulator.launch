@@ -17,17 +17,17 @@
 
   <!-- Launch the mux node with the parameters from params.yaml -->
   <node pkg="racecar_simulator" name="mux_controller" type="mux" output="screen">
-    <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
+    <rosparam command="load" file="$(find racecar_simulator)/c_track_params.yaml"/>
   </node>
 
   <!-- Launch the behavior controller node with the parameters from params.yaml -->
   <node pkg="racecar_simulator" name="behavior_controller" type="behavior_controller" output="screen">
-    <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
+    <rosparam command="load" file="$(find racecar_simulator)/c_track_params.yaml"/>
   </node>
 
   <!-- Launch the Random Walker Node -->
   <node pkg="racecar_simulator" name="random_walker" type="random_walk" output="screen">
-    <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
+    <rosparam command="load" file="$(find racecar_simulator)/c_track_params.yaml"/>
   </node>
 
   <!-- Launch the Keyboard Node -->

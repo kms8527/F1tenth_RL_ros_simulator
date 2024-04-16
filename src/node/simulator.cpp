@@ -1066,8 +1066,6 @@ class RacecarSimulator {
                 std::min(std::max(state_[i].steer_angle, -max_steering_angle_),
                          max_steering_angle_);
 
-            previous_seconds = current_seconds;
-
             /// Publish the pose as a transformation
             pub_pose_transform(timestamp, i);
 
@@ -1159,6 +1157,8 @@ class RacecarSimulator {
                 pub_laser_link_transform(timestamp, i);
             }
         }
+        previous_seconds = current_seconds;
+
         visualizeTimeInRviz(current_seconds - init_time_);
 
         bool curr_collision = checkAllCollisions(obs_corner_pts_);

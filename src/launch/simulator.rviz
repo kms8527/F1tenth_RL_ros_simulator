@@ -511,7 +511,8 @@ Visualization Manager:
       Marker Topic: /ref_points0
       Name: ref0
       Namespaces:
-        {}
+        global_path: true
+        predicted_positions: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -527,7 +528,8 @@ Visualization Manager:
       Marker Topic: /LMPC0
       Name: MPC0
       Namespaces:
-        {}
+        borderlines: true
+        predicted_positions: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -644,7 +646,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 12.531026840209961
+      Distance: 78.64431762695312
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -652,9 +654,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.2302703857421875
-        Y: -4.3338799476623535
-        Z: -0.8825088143348694
+        X: -51.381229400634766
+        Y: 13.342958450317383
+        Z: 7.106960296630859
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -662,7 +664,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 3.1303954124450684
+      Yaw: 1.1672099828720093
     Saved: ~
 Window Geometry:
   Displays:
@@ -682,5 +684,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1440
-  X: 2188
-  Y: 90
+  X: 2522
+  Y: 220
