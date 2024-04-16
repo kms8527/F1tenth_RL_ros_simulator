@@ -122,7 +122,7 @@ broadcast_transform: true
 # init pose
 random_pose: true
 #waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Budapest/Budapest_raceline.csv"
-waypoint_file: "/home/a/racecar_simulator/src/maps/c_track_path.csv"
+
 #waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Shanghai/Shanghai_centerline.csv"
 #v : velocity control , a : accel control
 control_mode: "a"
