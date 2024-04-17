@@ -128,3 +128,4 @@ random_pose: true
 control_mode: "a"
 synchronized_mode: false #MPC의 synchronized_mode_와 같아야함.
 sync_time_step: 0.001 # MPC Ts_와 일치해야함.
+restart_mode: false
