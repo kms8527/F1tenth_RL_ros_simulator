@@ -138,7 +138,8 @@ random_pose: true
 #waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Budapest/Budapest_raceline.csv"
 #waypoint_file: "/home/a/racecar_simulator/src/centerline_waypoints.csv"
 #waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Shanghai/Shanghai_centerline.csv"
-waypoint_file: "/home/a/racecar_simulator/src/centerline_waypoints.csv"
+# waypoint_file: "/home/a/racecar_simulator/src/centerline_waypoints.csv"
+waypoint_file: "/home/a/racecar_simulator/src/c_track_path.csv"
 #v : velocity control , a : accel control
 control_mode: "a"
 synchronized_mode: true #MPC의 synchronized_mode_와 같아야함.

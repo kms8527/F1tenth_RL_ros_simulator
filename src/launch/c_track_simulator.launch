@@ -1,7 +1,8 @@
 <?xml version="1.0"?>
 <launch>
   <!-- Load waypoint path-->
-  <arg name="waypoint_file" default="$(find racecar_simulator)/maps/c_track_path.csv"/>
+  <!-- <arg name="waypoint_file" default="$(find racecar_simulator)/maps/c_track_path.csv"/> -->
+  <param name="/waypoint_file" value="$(find racecar_simulator)/maps/c_track_path.csv"/>
 
   <!-- Listen to messages from joysicks -->
   <node pkg="joy" name="joy_node" type="joy_node"/>

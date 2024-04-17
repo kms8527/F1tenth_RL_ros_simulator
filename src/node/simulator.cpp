@@ -312,7 +312,7 @@ class RacecarSimulator {
         if (random_pose_) {
             std::ifstream read_file;
             std::string waypoint_file;
-            n.getParam("waypoint_file", waypoint_file);
+            n.getParam("/waypoint_file", waypoint_file);
             std::cout << "waypoint file : " << waypoint_file << std::endl;
             read_file.open(waypoint_file.c_str());
 
