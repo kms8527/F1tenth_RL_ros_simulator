@@ -14,7 +14,7 @@ max_steering_angle: 0.4189 # radians
 max_accel: 4.00 # meters/second^2
 max_decel: 6.00 # meters/second^2
 max_steering_vel: 2.8 # radians/second
-friction_coeff: 0.92 #0.523 # - (complete estimate)
+friction_coeff: 0.9 #0.523 # - (complete estimate)
 height_cg: 0.074 # m (roughly measured to be 3.25 in)
 l_cg2rear: 0.17145 # m (decently measured to be 6.75 in)
 l_cg2front: 0.15875 # m (decently measured to be 6.25 in)
@@ -125,7 +125,11 @@ random_pose: true
 
 #waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Shanghai/Shanghai_centerline.csv"
 #v : velocity control , a : accel control
-control_mode: "a"
+control_mode: "v"
 synchronized_mode: false #MPC의 synchronized_mode_와 같아야함.
 sync_time_step: 0.001 # MPC Ts_와 일치해야함.
 restart_mode: false
+noise_mode: true
+pose_noise: 0.1
+yaw_noise: 0.1
+vel_noise: 1.0

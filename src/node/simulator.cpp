@@ -228,6 +228,10 @@ class RacecarSimulator {
     // for collision check
     bool is_collision_;
     bool restart_mode_;
+    bool noise_mode_;
+    double pose_noise_;
+    double yaw_noise_;
+    double vel_noise_;
     std::vector<bool> obj_collision_;
     bool random_pose_;
     std::vector<geometry_msgs::PointStamped> global_path_;
@@ -306,7 +310,10 @@ class RacecarSimulator {
         // synchoronized mode
         n.getParam("synchronized_mode", synchronized_mode_);
         n.getParam("restart_mode", restart_mode_);
-
+        n.getParam("noise_mode", noise_mode_);
+        n.getParam("pose_noise", pose_noise_);
+        n.getParam("yaw_noise", yaw_noise_);
+        n.getParam("vel_noise", vel_noise_);
         is_collision_ = false;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         if (random_pose_) {
@@ -1589,21 +1596,37 @@ class RacecarSimulator {
     }
 
     void pub_odom(ros::Time timestamp, size_t i) {
+        double yaw_noise, x_noise, y_noise, vel_noise;
+        
+        if (noise_mode_){
+            x_noise = pose_noise_ * (rand() % 2 - 1);
+            y_noise = pose_noise_ * (rand() % 2 - 1);
+            yaw_noise = yaw_noise_ * (rand() % 2 - 1);
+            vel_noise = vel_noise_ * (rand() % 2 - 1);
+        }
+        else{
+            x_noise = 0.0;
+            y_noise = 0.0;
+            yaw_noise = 0.0;
+            vel_noise = 0.0;
+        }
+            
+
 
         // Make an odom message and publish it
         nav_msgs::Odometry odom;
         odom.header.stamp = timestamp;
         odom.header.frame_id = map_frame;
         odom.child_frame_id = base_frame + std::to_string(i);
-        odom.pose.pose.position.x = state_[i].x;
-        odom.pose.pose.position.y = state_[i].y;
+        odom.pose.pose.position.x = state_[i].x + x_noise;
+        odom.pose.pose.position.y = state_[i].y + y_noise;
         tf2::Quaternion quat;
-        quat.setEuler(0., 0., state_[i].theta);
+        quat.setEuler(0., 0., state_[i].theta + yaw_noise);
         odom.pose.pose.orientation.x = quat.x();
         odom.pose.pose.orientation.y = quat.y();
         odom.pose.pose.orientation.z = quat.z();
         odom.pose.pose.orientation.w = quat.w();
-        odom.twist.twist.linear.x = state_[i].velocity;
+        odom.twist.twist.linear.x = state_[i].velocity + vel_noise;
         odom.twist.twist.angular.z = state_[i].angular_velocity;
 
         if (std::isnan(state_[i].x) || std::isnan(state_[i].y) ||
