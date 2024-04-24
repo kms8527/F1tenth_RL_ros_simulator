@@ -611,8 +611,8 @@ class RacecarSimulator {
         marker.action = visualization_msgs::Marker::ADD;
 
         // 시간 위치 및 스케일 설정
-        marker.pose.position.x = -2.313;
-        marker.pose.position.y = -4.698;
+        marker.pose.position.x = -4.808;
+        marker.pose.position.y = -4.331;
         marker.pose.position.z = 1.0;
         marker.scale.z = 1.0; // 텍스트 크기
 
@@ -1054,7 +1054,7 @@ class RacecarSimulator {
                 if (std::isnan(desired_speed_[i]))
                     desired_speed_[i] = 0.0;
                 double accel = compute_accel(desired_speed_[i], i);
-                set_accel(desired_accel_[i], i);
+                set_accel(accel, i);
             } else if (control_mode_ == "a") {
                 if (std::isnan(desired_accel_[i]))
                     desired_accel_[i] = 0.0;
@@ -1690,7 +1690,7 @@ class RacecarSimulator {
         for (size_t i = 0; i < min_scan_distances_.size();
              i++) { // wall collision check
             if (min_scan_distances_[i] < thresh) {
-                fprintf(stderr, "Collision detected\n");
+                // fprintf(stderr, "Collision detected\n");
                 if (i ==
                     0) // collision reset occurs only when ego vehicle collides
                     return true; // Collision detected between two vehicles
@@ -1705,7 +1705,7 @@ class RacecarSimulator {
                 if (checkCollision(obs_corner_pts[i],
                                    obs_corner_pts[j])) { // vehicle to vehicle
                                                          // collision check
-                    fprintf(stderr, "Collision detected\n");
+                    // fprintf(stderr, "Collision detected\n");
                     if (i == 0) // collision reset occurs only when ego vehicle
                                 // collides
                         return true; // Collision detected between two vehicles
