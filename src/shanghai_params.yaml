@@ -127,3 +127,4 @@ waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Shanghai/S
 control_mode: "a"
 synchronized_mode: true #MPC의 synchronized_mode_와 같아야함.
 sync_time_step: 0.025 # MPC Ts_와 일치해야함.
+model_type: 0

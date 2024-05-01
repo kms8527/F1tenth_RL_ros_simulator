@@ -148,3 +148,4 @@ restart_mode: false
 noise_mode: false
 yaw_noise: 0.0
 vel_noise: 0.0
+model_type: 0

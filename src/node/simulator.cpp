@@ -39,6 +39,9 @@
 #include <std_msgs/Float32MultiArray.h>
 
 using namespace racecar_simulator;
+// using namespace mpcc;
+
+enum ModelType { ORIGINALMODEL, PAJEKAMODEL };
 
 std::vector<geometry_msgs::PointStamped>
 sampleWithoutReplacement(const std::vector<geometry_msgs::PointStamped> &data,
@@ -140,6 +143,7 @@ class RacecarSimulator {
 
     // The car state and parameters
     std::vector<CarState> state_;
+    //  std::vector<std::shared_ptr<IState>> states_;
     double previous_seconds;
     double init_time_;
     double scan_distance_to_base_link_;
@@ -232,6 +236,7 @@ class RacecarSimulator {
     double pose_noise_;
     double yaw_noise_;
     double vel_noise_;
+    int model_type_;
     std::vector<bool> obj_collision_;
     bool random_pose_;
     std::vector<geometry_msgs::PointStamped> global_path_;
@@ -314,6 +319,20 @@ class RacecarSimulator {
         n.getParam("pose_noise", pose_noise_);
         n.getParam("yaw_noise", yaw_noise_);
         n.getParam("vel_noise", vel_noise_);
+        n.getParam("model_type", model_type_);
+        std::string param_path;
+        std::string cost_path;
+        std::string bounds_path;
+        std::string track_path;
+        std::string normalization_path;
+        n.getParam("param_path", param_path);
+        n.getParam("cost_path", cost_path);
+        n.getParam("bounds_path", bounds_path);
+        n.getParam("track_path", track_path);
+        n.getParam("normalization_path", normalization_path);
+        // n.getParam("json_paths", json_paths);
+
+        // integrator(update_pose_rate, json_paths);
         is_collision_ = false;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         if (random_pose_) {
@@ -367,7 +386,7 @@ class RacecarSimulator {
                                   .steer_angle = 0.0,
                                   .angular_velocity = 0.0,
                                   .slip_angle = 0.0,
-                                  .st_dyn = false};
+                                  };
                 state_.push_back(state);
 
             } else {
@@ -378,7 +397,7 @@ class RacecarSimulator {
                                   .steer_angle = 0.0,
                                   .angular_velocity = 0.0,
                                   .slip_angle = 0.0,
-                                  .st_dyn = false};
+                                  };
                 state_.push_back(state);
             }
 
@@ -708,7 +727,7 @@ class RacecarSimulator {
                                   .steer_angle = 0.0,
                                   .angular_velocity = 0.0,
                                   .slip_angle = 0.0,
-                                  .st_dyn = false};
+                                  };
                 state_.push_back(state);
 
             } else {
@@ -719,7 +738,7 @@ class RacecarSimulator {
                                   .steer_angle = 0.0,
                                   .angular_velocity = 0.0,
                                   .slip_angle = 0.0,
-                                  .st_dyn = false};
+                                  };
                 state_.push_back(state);
             }
 
@@ -1064,9 +1083,21 @@ class RacecarSimulator {
             set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i), i);
 
             // Update the pose
-            state_[i] = STKinematics::update(
-                state_[i], accel_[i], steer_angle_vel_[i], params_,
-                current_seconds - previous_seconds);
+
+            // Update the state
+            if (model_type_ == ORIGINALMODEL)
+                state_[i] = STKinematics::update(
+                    state_[i], accel_[i], steer_angle_vel_[i], params_,
+                    0.001);
+            else if (model_type_ == PAJEKAMODEL)
+                state_[i] = STKinematics::update_with_pacejka(state_[i],accel_[i], steer_angle_vel_[i], params_, 0.001);
+            else {
+                state_[i] = STKinematics::update(
+                    state_[i], accel_[i], steer_angle_vel_[i], params_,
+                    0.001);
+            }
+            
+
             state_[i].velocity =
                 std::min(std::max(state_[i].velocity, -max_speed_), max_speed_);
             state_[i].steer_angle =
@@ -1597,21 +1628,17 @@ class RacecarSimulator {
 
     void pub_odom(ros::Time timestamp, size_t i) {
         double yaw_noise, x_noise, y_noise, vel_noise;
-        
-        if (noise_mode_){
+        if (noise_mode_) {
             x_noise = pose_noise_ * (rand() % 2 - 1);
             y_noise = pose_noise_ * (rand() % 2 - 1);
             yaw_noise = yaw_noise_ * (rand() % 2 - 1);
             vel_noise = vel_noise_ * (rand() % 2 - 1);
-        }
-        else{
+        } else {
             x_noise = 0.0;
             y_noise = 0.0;
             yaw_noise = 0.0;
             vel_noise = 0.0;
         }
-            
-
 
         // Make an odom message and publish it
         nav_msgs::Odometry odom;

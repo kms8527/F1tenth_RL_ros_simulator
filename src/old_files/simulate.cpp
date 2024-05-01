@@ -198,11 +198,11 @@ public:
         n = ros::NodeHandle("~");
 
         // Initialize car state and driving commands
-        state = {.x=0, .y=0, .theta=0, .velocity=0, .steer_angle=0.0, .angular_velocity=0.0, .slip_angle=0.0, .st_dyn=false};
+        state = {.x=0, .y=0, .theta=0, .velocity=0, .steer_angle=0.0, .angular_velocity=0.0, .slip_angle=0.0};
         accel = 0.0;
         steer_angle_vel = 0.0;
-        opponent_pose = {.x=0, .y=0, .theta=0, .velocity=0, .steer_angle=0.0, .angular_velocity=0.0, .slip_angle=0.0, .st_dyn=false};
-        previous_opponent_pose = {.x=0, .y=0, .theta=0, .velocity=0, .steer_angle=0.0, .angular_velocity=0.0, .slip_angle=0.0, .st_dyn=false};
+        opponent_pose = {.x=0, .y=0, .theta=0, .velocity=0, .steer_angle=0.0, .angular_velocity=0.0, .slip_angle=0.0};
+        previous_opponent_pose = {.x=0, .y=0, .theta=0, .velocity=0, .steer_angle=0.0, .angular_velocity=0.0, .slip_angle=0.0};
         opponent_accel = 0;
         opponent_steer_angle_vel = 0;
         previous_seconds = ros::Time::now().toSec();

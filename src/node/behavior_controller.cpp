@@ -164,7 +164,7 @@ class BehaviorController {
                  .steer_angle = 0.0,
                  .angular_velocity = 0.0,
                  .slip_angle = 0.0,
-                 .st_dyn = false};
+                 };
 
         // Get params for precomputation and collision detection
         int scan_beams;
