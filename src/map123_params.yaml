@@ -134,9 +134,3 @@ pose_noise: 0.1
 yaw_noise: 0.2
 vel_noise: 2.0
 model_type: 1
-
-param_path: 
-cost_path: "src/params/cost_params.json"
-bounds_path: "src/params/bounds_params.json"
-track_path:
-normalization_path:
