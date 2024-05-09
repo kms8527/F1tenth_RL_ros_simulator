@@ -151,7 +151,7 @@ CarState STKinematics::update_with_pacejka(const CarState start, double accel, d
 
 double STKinematics::getForceFront(const CarState &state, const CarParams &p) {
     const double B = 20.0; // 스티프니스 계수
-    const double C = 1.9;  // 모양 계수
+    const double C = 0.9;  // 모양 계수
     const double D = 20.0; // 최대 힘
 
     // 슬립 각도를 라디안으로 변환
@@ -163,7 +163,7 @@ double STKinematics::getForceFront(const CarState &state, const CarParams &p) {
 
 double STKinematics::getForceRear(const CarState &state, const CarParams &p) {
     const double B = 20.0; // 스티프니스 계수
-    const double C = 1.9;  // 모양 계수
+    const double C = 0.9;  // 모양 계수
     const double D = 20.0; // 최대 힘
 
     // 슬립 각도를 라디안으로 변환
