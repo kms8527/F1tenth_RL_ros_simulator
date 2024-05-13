@@ -129,8 +129,11 @@ control_mode: "a"
 synchronized_mode: false #MPC의 synchronized_mode_와 같아야함.
 sync_time_step: 0.001 # MPC Ts_와 일치해야함.
 restart_mode: false
-noise_mode: false
-pose_noise: 0.1
-yaw_noise: 0.2
-vel_noise: 2.0
+noise_mode: true
+B: 2.0
+C: 0.1
+D: 250
+pose_noise: 0.0
+yaw_noise: 0.0
+vel_noise: 0.0
 model_type: 1

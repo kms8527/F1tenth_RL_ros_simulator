@@ -150,25 +150,19 @@ CarState STKinematics::update_with_pacejka(const CarState start, double accel, d
 }
 
 double STKinematics::getForceFront(const CarState &state, const CarParams &p) {
-    const double B = 20.0; // 스티프니스 계수
-    const double C = 0.9;  // 모양 계수
-    const double D = 20.0; // 최대 힘
 
     // 슬립 각도를 라디안으로 변환
     double alpha = getFrontSlipAngle(state, p);
 
     // D * sin(C * arctan(B * alpha)) 형태로 측면 힘을 계산
-    return D * std::sin(C * std::atan(B * alpha));
+    return p.D * std::sin(p.C * std::atan(p.B * alpha));
 }
 
 double STKinematics::getForceRear(const CarState &state, const CarParams &p) {
-    const double B = 20.0; // 스티프니스 계수
-    const double C = 0.9;  // 모양 계수
-    const double D = 20.0; // 최대 힘
 
     // 슬립 각도를 라디안으로 변환
     double alpha = getRearSlipAngle(state, p);
-    return D * std::sin(C * std::atan(B * alpha));
+    return p.D * std::sin(p.C * std::atan(p.B * alpha));
 }
 
 double STKinematics::getFrontSlipAngle(const CarState &state, const CarParams &p) {
