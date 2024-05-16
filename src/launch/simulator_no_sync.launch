@@ -8,11 +8,11 @@
   <node pkg="map_server" name="map_server" type="map_server" args="$(arg map)"/>
 
   <!-- Launch the racecar model -->
-  <include file="$(find racecar_simulator)/launch/multi_racecar_model.launch"/>
+  <include file="$(find racecar_simulator)/launch/racecar_model_obj_1.launch"/>
 
   <!-- Begin the simulator with the parameters from params.yaml -->
   <node pkg="racecar_simulator" name="racecar_simulator" type="simulator" output="screen">
-    <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
+    <rosparam command="load" file="$(find racecar_simulator)/params_no_sync.yaml"/>
   </node>
 
   <!-- Launch the mux node with the parameters from params.yaml -->

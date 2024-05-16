@@ -12,6 +12,10 @@ struct CarParams {
     double cs_r; // cornering stiffness coeff for rear wheels
     double mass;
     double I_z; // moment of inertia about z axis from CG
+
+    double B; // Pacejka tire model parameter : stiffness factor
+    double C; // Pacejka tire model parameter : shape factor
+    double D; // Pacejka tire model parameter : peak value of longitudinal force
 };
 
 }

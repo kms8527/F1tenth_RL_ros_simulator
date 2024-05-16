@@ -1,5 +1,5 @@
 #obj_num
-obj_num: 1
+obj_num: 2
 # obstacle parameters
 obstacle_size: 1
 # The distance between the front and
@@ -9,25 +9,12 @@ wheelbase: 0.3302 # meters
 width: 0.2032 # meters
 
 # Limits on the speed and steering angle
-# max_speed: 12. #  meters/second
-# max_steering_angle: 0.4189 # radians
-# max_accel: 4.00 # meters/second^2
-# max_decel: 6.00 # meters/second^2
-# max_steering_vel: 2.8 # radians/second
-# friction_coeff: 0.92 #0.523 # - (complete estimate)
-# height_cg: 0.074 # m (roughly measured to be 3.25 in)
-# l_cg2rear: 0.17145 # m (decently measured to be 6.75 in)
-# l_cg2front: 0.15875 # m (decently measured to be 6.25 in)
-# C_S_front: 4.718 #.79 # 1/rad ? (estimated weight/4)
-# C_S_rear: 5.4562 #.79 # 1/rad ? (estimated weight/4)
-# mass: 3.47 # kg (measured on car 'lidart')
-# moment_inertia: .04712 # kg m^2 (estimated as a rectangle with width and height of car and evenly distributed mass, then shifted to account for center of mass location)
-max_speed: 10. #  meters/second
+max_speed: 12. #  meters/second
 max_steering_angle: 0.4189 # radians
-max_accel: 7.51 # meters/second^2
-max_decel: 8.26 # meters/second^2
-max_steering_vel: 3.2 # radians/second
-friction_coeff: 0.92 # - (complete estimate)
+max_accel: 4.00 # meters/second^2
+max_decel: 6.00 # meters/second^2
+max_steering_vel: 2.8 # radians/second
+friction_coeff: 0.4 # - (complete estimate)
 height_cg: 0.074 # m (roughly measured to be 3.25 in)
 l_cg2rear: 0.17145 # m (decently measured to be 6.75 in)
 l_cg2front: 0.15875 # m (decently measured to be 6.25 in)
@@ -35,7 +22,6 @@ C_S_front: 4.718 #.79 # 1/rad ? (estimated weight/4)
 C_S_rear: 5.4562 #.79 # 1/rad ? (estimated weight/4)
 mass: 3.47 # kg (measured on car 'lidart')
 moment_inertia: .04712 # kg m^2 (estimated as a rectangle with width and height of car and evenly distributed mass, then shifted to account for center of mass location)
-
 
 # The rate at which the pose and the lidar publish
 update_pose_rate: 0.001
@@ -136,16 +122,18 @@ broadcast_transform: true
 # init pose
 random_pose: true
 #waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Budapest/Budapest_raceline.csv"
-#waypoint_file: "/home/a/racecar_simulator/src/centerline_waypoints.csv"
+
 #waypoint_file: "/home/a/racecar_simulator/src/maps/f1tenth_racetracks/Shanghai/Shanghai_centerline.csv"
-# waypoint_file: "/home/a/racecar_simulator/src/centerline_waypoints.csv"
-waypoint_file: "/home/a/racecar_simulator/src/c_track_path.csv"
 #v : velocity control , a : accel control
 control_mode: "a"
 synchronized_mode: false #MPC의 synchronized_mode_와 같아야함.
-sync_time_step: 0.025 # MPC Ts_와 일치해야함.
+sync_time_step: 0.001 # MPC Ts_와 일치해야함.
 restart_mode: false
-noise_mode: false
+noise_mode: true
+B: 2.0
+C: 0.1
+D: 250
+pose_noise: 0.0
 yaw_noise: 0.0
 vel_noise: 0.0
-model_type: 0
+model_type: 1

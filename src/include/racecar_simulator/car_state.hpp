@@ -10,7 +10,6 @@ struct CarState {
     double steer_angle;
     double angular_velocity;
     double slip_angle;
-    bool st_dyn;
 };
 
 }

@@ -4,7 +4,7 @@
   <node pkg="joy" name="joy_node" type="joy_node"/>
 
   <!-- Launch a map from the maps folder-->
-  <arg name="map" default="$(find racecar_simulator)/maps/levinelobby_track.yaml"/>
+  <arg name="map" default="$(find racecar_simulator)/maps/f1tenth_racetracks/Shanghai/Shanghai_map.yaml"/>
   <node pkg="map_server" name="map_server" type="map_server" args="$(arg map)"/>
 
   <!-- Launch the racecar model -->
@@ -12,7 +12,7 @@
 
   <!-- Begin the simulator with the parameters from params.yaml -->
   <node pkg="racecar_simulator" name="racecar_simulator" type="simulator" output="screen">
-    <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
+    <rosparam command="load" file="$(find racecar_simulator)/shanghai_params.yaml"/>
   </node>
 
   <!-- Launch the mux node with the parameters from params.yaml -->
