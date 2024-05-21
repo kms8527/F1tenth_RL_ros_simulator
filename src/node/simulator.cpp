@@ -1437,6 +1437,12 @@ class RacecarSimulator {
         boost::shared_ptr<geometry_msgs::PoseStamped> shared_pose(&temp_pose, [](geometry_msgs::PoseStamped *) {});
         pose_callback(shared_pose, 1);
         state_[1].velocity = 0.0;
+        state_[1].angular_velocity = 0.0;
+        state_[1].slip_angle = 0.0;
+
+        desired_accel_[1] = 0.0;
+        desired_steer_ang_[1] = 0.0;
+        desired_speed_[1] = 0.0;
 
         // pose_callback(&temp_pose, i);
     }

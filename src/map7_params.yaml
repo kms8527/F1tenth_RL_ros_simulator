@@ -30,7 +30,6 @@ update_pose_rate: 0.001
 scan_beams: 1080
 scan_field_of_view: 6.2831853 #4.71 # radians
 
-
 # The distance from the center of the
 # rear axis (base_link) to the lidar
 scan_distance_to_base_link: 0.275 # meters
