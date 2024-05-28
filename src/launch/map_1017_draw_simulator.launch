@@ -1,12 +1,14 @@
 <?xml version="1.0"?>
 <launch>
-  <param name="/waypoint_file" value="$(find racecar_simulator)/maps/levi_centerline_waypoints.csv"/>
+  <!-- Load waypoint path-->
+  <!-- <arg name="waypoint_file" default="$(find racecar_simulator)/maps/c_track_path.csv"/> -->
+  <param name="/waypoint_file" value="$(find racecar_simulator)/maps/map_1017_draw_path.csv"/>
 
   <!-- Listen to messages from joysicks -->
   <node pkg="joy" name="joy_node" type="joy_node"/>
 
   <!-- Launch a map from the maps folder-->
-  <arg name="map" default="$(find racecar_simulator)/maps/levinelobby_track.yaml"/>
+  <arg name="map" default="$(find racecar_simulator)/maps/map_1017_draw.yaml"/>
   <node pkg="map_server" name="map_server" type="map_server" args="$(arg map)"/>
 
   <!-- Launch the racecar model -->
@@ -14,22 +16,22 @@
 
   <!-- Begin the simulator with the parameters from params.yaml -->
   <node pkg="racecar_simulator" name="racecar_simulator" type="simulator" output="screen">
-    <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
+    <rosparam command="load" file="$(find racecar_simulator)/map7_params.yaml"/>
   </node>
 
   <!-- Launch the mux node with the parameters from params.yaml -->
   <node pkg="racecar_simulator" name="mux_controller" type="mux" output="screen">
-    <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
+    <rosparam command="load" file="$(find racecar_simulator)/map7_params.yaml"/>
   </node>
 
   <!-- Launch the behavior controller node with the parameters from params.yaml -->
   <node pkg="racecar_simulator" name="behavior_controller" type="behavior_controller" output="screen">
-    <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
+    <rosparam command="load" file="$(find racecar_simulator)/map7_params.yaml"/>
   </node>
 
   <!-- Launch the Random Walker Node -->
   <node pkg="racecar_simulator" name="random_walker" type="random_walk" output="screen">
-    <rosparam command="load" file="$(find racecar_simulator)/params.yaml"/>
+    <rosparam command="load" file="$(find racecar_simulator)/map7_params.yaml"/>
   </node>
 
   <!-- Launch the Keyboard Node -->
