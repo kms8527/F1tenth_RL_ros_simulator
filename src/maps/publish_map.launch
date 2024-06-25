@@ -1,0 +1,3 @@
+<launch>
+  <node name="map_server" pkg="map_server" type="map_server" args="/home/a/racecar_simulator/src/maps/map11.yaml" />
+</launch>

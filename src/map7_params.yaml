@@ -11,8 +11,8 @@ width: 0.2032 # meters
 # Limits on the speed and steering angle
 max_speed: 12. #  meters/second
 max_steering_angle: 0.4189 # radians
-max_accel: 4.00 # meters/second^2
-max_decel: 7.00 # meters/second^2
+max_accel: 9.8 # meters/second^2
+max_decel: 9.8 # meters/second^2
 max_steering_vel: 2.8 # radians/second
 friction_coeff: 0.8 # - (complete estimate)
 height_cg: 0.074 # m (roughly measured to be 3.25 in)
@@ -128,10 +128,10 @@ control_mode: "a"
 synchronized_mode: false #MPC의 synchronized_mode_와 같아야함.
 sync_time_step: 0.001 # MPC Ts_와 일치해야함.
 restart_mode: false
-noise_mode: true
-B: 2.0
-C: 0.1
-D: 250
+noise_mode: false
+B: 1.5
+C: 1.5
+D: 35
 pose_noise: 0.1
 yaw_noise: 0.1
 vel_noise: 0.3
