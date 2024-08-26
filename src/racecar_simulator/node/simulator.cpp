@@ -35,9 +35,9 @@
 #include "control_msgs/CarState.h"
 #include "control_msgs/reset.h"
 #include "control_msgs/sync_control.h"
+
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float32MultiArray.h>
-
 using namespace racecar_simulator;
 // using namespace mpcc;
 
@@ -225,6 +225,8 @@ class RacecarSimulator {
 
     // for collision check
     bool is_collision_;
+    int collision_num_;
+    int lap_;
     bool restart_mode_;
     bool noise_mode_;
     double pose_noise_;
@@ -329,6 +331,8 @@ class RacecarSimulator {
 
         // integrator(update_pose_rate, json_paths);
         is_collision_ = false;
+        collision_num_ = -1;
+        lap_ = 0;
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         if (random_pose_) {
             std::ifstream read_file;
@@ -605,15 +609,15 @@ class RacecarSimulator {
         marker.action = visualization_msgs::Marker::ADD;
 
         // 시간 위치 및 스케일 설정
-        marker.pose.position.x = -4.808;
-        marker.pose.position.y = -4.331;
-        marker.pose.position.z = 1.0;
+        marker.pose.position.x = 4.6667;
+        marker.pose.position.y = 3.47496;
+        marker.pose.position.z = 1.5;
         marker.scale.z = 1.0; // 텍스트 크기
 
         // 시간을 문자열로 변환 (최대 소수점 3자리)
         std::stringstream ss;
         ss << std::fixed << std::setprecision(3) << time;
-        marker.text = "Sim Time : " + ss.str();
+        marker.text = "Sim Time : " + ss.str() + "\n lap :" + std::to_string(lap_) + "\n collision num : " + std::to_string(collision_num_);
 
         // 색상 및 기간 설정
         marker.color.r = 1.0f;
@@ -1017,7 +1021,7 @@ class RacecarSimulator {
 
     void update_pose(const ros::TimerEvent &) {
 
-        obs_corner_pts_.clear();
+        // obs_corner_pts_.clear();
         min_scan_distances_.clear();
         ros::Time timestamp = ros::Time::now();
         double current_seconds = timestamp.toSec();
@@ -1146,8 +1150,10 @@ class RacecarSimulator {
             is_collision_ = curr_collision;
             std_msgs::Bool is_collision;
             is_collision.data = is_collision_;
-            if (is_collision_)
+            if (is_collision_) {
+                collision_num_++;
                 collision_pub_.publish(is_collision);
+            }
             if (is_collision_ && restart_mode_) {
                 RestartSimulation();
             }
@@ -1655,6 +1661,8 @@ class RacecarSimulator {
     bool checkAllCollisions(const std::vector<std::vector<geometry_msgs::Point>> &obs_corner_pts) {
         double thresh = width_ / 2.0;
         for (size_t i = 0; i < min_scan_distances_.size(); i++) { // wall collision check
+            if (i != 0)                                           // only check ego vehicle
+                break;
             if (min_scan_distances_[i] < thresh) {
                 // fprintf(stderr, "Collision detected\n");
                 if (i == 0)      // collision reset occurs only when ego vehicle collides

@@ -5,3 +5,15 @@ build/
 .vscode/launch.json
 .vscode/settings.json
 .vscode/tasks.json
+.catkin_tools/CATKIN_IGNORE
+.catkin_tools/README
+.catkin_tools/VERSION
+.catkin_tools/profiles/default/build.yaml
+.catkin_tools/profiles/default/config.yaml
+.catkin_tools/profiles/default/devel_collisions.txt
+.catkin_tools/profiles/default/packages/catkin_tools_prebuild/devel_manifest.txt
+.catkin_tools/profiles/default/packages/catkin_tools_prebuild/package.xml
+.catkin_tools/profiles/default/packages/control_msgs/devel_manifest.txt
+.catkin_tools/profiles/default/packages/control_msgs/package.xml
+.catkin_tools/profiles/default/packages/racecar_simulator/devel_manifest.txt
+.catkin_tools/profiles/default/packages/racecar_simulator/package.xml
