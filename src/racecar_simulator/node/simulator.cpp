@@ -38,6 +38,10 @@
 
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float32MultiArray.h>
+
+#include "CubicSpline2D.h"
+#include <iomanip> // std::setprecision 사용을 위해 포함
+
 using namespace racecar_simulator;
 // using namespace mpcc;
 
@@ -157,6 +161,14 @@ class RacecarSimulator {
     // A timer to update the pose
     ros::Timer update_pose_timer;
     double iter_;
+    CubicSpline2D csp_;
+    std::vector<double> curr_s_lists_;
+    double start_time_;
+    double minimum_lap_time_;
+    double new_lap_time_;
+    double s_prev_;
+    double lap_time_score_;
+    double avg_lap_time_score_;
 
     // std::vector<ros::ServiceClient> client_;
     // ros::ServiceClient client_;
@@ -371,10 +383,19 @@ class RacecarSimulator {
             random_pose_array = sampleWithoutReplacement(global_path_, obj_num_);
         }
 
+        // initialize cubic spline
+        // It is used for lap time calculation and number of laps calculation
+        csp_.setCubicSpline2D(global_path_);
+
+        // time initialization
+        minimum_lap_time_ = DBL_MAX;
+        new_lap_time_ = 0;
+
         std::random_device rd;
         std::mt19937 gen(rd());
         // Initialize car state and driving commands
         for (int i = 0; i < obj_num_; i++) {
+
             if (random_pose_) {
                 CarState state = {
                     .x = random_pose_array[i].point.x,
@@ -385,6 +406,7 @@ class RacecarSimulator {
                     .angular_velocity = 0.0,
                     .slip_angle = 0.0,
                 };
+                curr_s_lists_.push_back(csp_.find_s(state.x, state.y, 0));
                 state_.push_back(state);
 
             } else {
@@ -397,6 +419,8 @@ class RacecarSimulator {
                     .angular_velocity = 0.0,
                     .slip_angle = 0.0,
                 };
+
+                curr_s_lists_.push_back(csp_.find_s(state.x, state.y, 0));
                 state_.push_back(state);
             }
 
@@ -408,7 +432,7 @@ class RacecarSimulator {
 
             obj_collision_.push_back(false);
         }
-
+        start_time_ = ros::Time::now().toSec();
         // Initialize a simulator of the laser scanner
         scan_simulator_ = ScanSimulator2D(scan_beams, scan_fov, scan_std_dev);
 
@@ -609,15 +633,18 @@ class RacecarSimulator {
         marker.action = visualization_msgs::Marker::ADD;
 
         // 시간 위치 및 스케일 설정
-        marker.pose.position.x = 4.6667;
-        marker.pose.position.y = 3.47496;
+        marker.pose.position.x = 6.6667;
+        marker.pose.position.y = 6.47496;
         marker.pose.position.z = 1.5;
         marker.scale.z = 1.0; // 텍스트 크기
 
         // 시간을 문자열로 변환 (최대 소수점 3자리)
-        std::stringstream ss;
+        std::stringstream ss, oss;
         ss << std::fixed << std::setprecision(3) << time;
-        marker.text = "Sim Time : " + ss.str() + "\n lap :" + std::to_string(lap_) + "\n collision num : " + std::to_string(collision_num_);
+        oss << std::fixed << std::setprecision(3) << avg_lap_time_score_;
+        checkOneLapPass();
+        marker.text = "Sim Time : " + ss.str() + "\n lap : " + std::to_string(lap_) + " \n Avg lap score : " + oss.str() +
+                      "\n collision num : " + std::to_string(collision_num_);
 
         // 색상 및 기간 설정
         marker.color.r = 1.0f;
@@ -628,6 +655,24 @@ class RacecarSimulator {
 
         // 마커 발행
         time_pub_.publish(marker);
+    }
+
+    void checkOneLapPass() {
+        if (s_prev_ == curr_s_lists_[0])
+            return;
+        // /***check if it is new lap***/
+        if (curr_s_lists_[0] - s_prev_ < -csp_.s.back() / 2) {
+            lap_++;
+            new_lap_time_ = ros::Time::now().toSec() - start_time_;
+            if (new_lap_time_ < minimum_lap_time_) {
+                minimum_lap_time_ = new_lap_time_;
+            }
+            start_time_ = ros::Time::now().toSec();
+            double collision_penalty_time = 5.0;
+            lap_time_score_ = new_lap_time_ + collision_num_ * collision_penalty_time;
+            avg_lap_time_score_ = (avg_lap_time_score_ * (lap_ - 1) + lap_time_score_) / lap_;
+        }
+        s_prev_ = curr_s_lists_[0];
     }
 
     void clearvector() {
@@ -707,6 +752,7 @@ class RacecarSimulator {
                     .angular_velocity = 0.0,
                     .slip_angle = 0.0,
                 };
+                curr_s_lists_[i] = csp_.find_s(state.x, state.y, 0);
                 state_.push_back(state);
 
             } else {
@@ -719,6 +765,8 @@ class RacecarSimulator {
                     .angular_velocity = 0.0,
                     .slip_angle = 0.0,
                 };
+                curr_s_lists_[i] = csp_.find_s(state.x, state.y, 0);
+
                 state_.push_back(state);
             }
 
@@ -1053,6 +1101,8 @@ class RacecarSimulator {
 
             state_[i].velocity = std::min(std::max(state_[i].velocity, -max_speed_), max_speed_);
             state_[i].steer_angle = std::min(std::max(state_[i].steer_angle, -max_steering_angle_), max_steering_angle_);
+
+            curr_s_lists_[i] = csp_.local_find_s(state_[i].x, state_[i].y, curr_s_lists_[i] - 0.1, 0.2);
 
             /// Publish the pose as a transformation
             pub_pose_transform(timestamp, i);

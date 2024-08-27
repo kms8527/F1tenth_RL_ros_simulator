@@ -17,3 +17,4 @@ build/
 .catkin_tools/profiles/default/packages/control_msgs/package.xml
 .catkin_tools/profiles/default/packages/racecar_simulator/devel_manifest.txt
 .catkin_tools/profiles/default/packages/racecar_simulator/package.xml
+logs/*

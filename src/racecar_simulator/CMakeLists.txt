@@ -20,17 +20,17 @@ find_package(control_msgs)
 
 # Add includes
 include_directories(include)
-file(GLOB SRC_FILES src/*.cpp)
-add_library(${PROJECT_NAME} ${SRC_FILES})
-target_link_libraries(${PROJECT_NAME} ${LIBS})
-set(LIBS ${LIBS} ${PROJECT_NAME})
+# file(GLOB SRC_FILES src/*.cpp)
+# add_library(${PROJECT_NAME} ${SRC_FILES})
+# target_link_libraries(${PROJECT_NAME} ${LIBS})
+# set(LIBS ${LIBS} ${PROJECT_NAME})
 
 # Install the library to CMAKE_INSTALL_PREFIX
 # which defaults to /usr/local
-install(TARGETS ${PROJECT_NAME}
-        DESTINATION lib)
-install(DIRECTORY include/${PROJECT_NAME}
-        DESTINATION include)
+# install(TARGETS ${PROJECT_NAME}
+#         DESTINATION lib)
+# install(DIRECTORY include/${PROJECT_NAME}
+#         DESTINATION include)
 
 ######################################
 # < End compile the library
@@ -69,12 +69,12 @@ if(DEFINED CATKIN_DEVEL_PREFIX)
 #  observation.srv
 #)
 	
-generate_messages(
-    DEPENDENCIES
-    std_msgs
-    nav_msgs
-    sensor_msgs
-)
+# generate_messages(
+#     DEPENDENCIES
+#     std_msgs
+#     nav_msgs
+#     sensor_msgs
+# )
 
   # Include catkin_libraries
   catkin_package(
@@ -85,27 +85,59 @@ generate_messages(
   set(LIBS ${LIBS} ${catkin_LIBRARIES})
   include_directories(include ${catkin_INCLUDE_DIRS})
 
-
-  
-
   # Add the nodes
   file(GLOB NODE_SRC_FILES node/*.cpp)
-  foreach(_node_file ${NODE_SRC_FILES})
-      get_filename_component(_node_name ${_node_file} NAME_WE)
-      add_executable(${_node_name} ${_node_file})
-      target_link_libraries(${_node_name} ${LIBS})
-      add_dependencies(${_node_name} racecar_simulator_generate_messages_cpp)
-  endforeach()
+  # foreach(_node_file ${NODE_SRC_FILES})
+  #     get_filename_component(_node_name ${_node_file} NAME_WE)
+  #     add_executable(${_node_name} ${_node_file})
+  #     target_link_libraries(${_node_name} ${LIBS})
+  #     add_dependencies(${_node_name} racecar_simulator_generate_messages_cpp)
+  # endforeach()
+
+  add_executable(simulator
+    node/CubicSpline1D.cpp
+    node/CubicSpline2D.cpp
+    node/QuarticPolynomial.cpp
+    node/QuinticPolynomial.cpp
+    node/simulator.cpp
+    src/precompute.cpp
+    src/st_kinematics.cpp
+    src/distance_transform.cpp
+    src/scan_simulator_2d.cpp
+  )
+
+  target_link_libraries(simulator ${LIBS} ${catkin_LIBRARIES})
+  add_dependencies(simulator ${catkin_EXPORTED_TARGETS})
+
+
+  # Mux node
+  add_executable(mux
+      node/mux.cpp  # Add the source files specific to mux node
+  )
+  target_link_libraries(mux ${LIBS})
+
+  # Behavior Controller node
+  add_executable(behavior_controller
+      node/behavior_controller.cpp  # Add the source files specific to behavior_controller node
+      src/precompute.cpp
+  )
+  target_link_libraries(behavior_controller ${LIBS})
+
+  # Random Walk node
+  add_executable(random_walk
+      node/random_walk.cpp  # Add the source files specific to random_walk node
+  )
+  target_link_libraries(random_walk ${LIBS})
 
   # Install the library
-  install(TARGETS ${PROJECT_NAME}
-      ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-      LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-      RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-  )
-  install(DIRECTORY include/${PROJECT_NAME}/
-      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  )
+  # install(TARGETS ${PROJECT_NAME}
+  #     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  #     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  #     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  # )
+  # install(DIRECTORY include/${PROJECT_NAME}/
+  #     DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  # )
 endif()
 
 ######################################
