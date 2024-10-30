@@ -169,6 +169,7 @@ class RacecarSimulator {
     double s_prev_;
     double lap_time_score_;
     double avg_lap_time_score_;
+    double avg_speed_;
 
     // std::vector<ros::ServiceClient> client_;
     // ros::ServiceClient client_;
@@ -237,8 +238,12 @@ class RacecarSimulator {
 
     // for collision check
     bool is_collision_;
-    int collision_num_;
+    int curr_lap_collision_num_;
+    int total_collision_num_;
+    // for logging
     int lap_;
+    double recent_collision_time_;
+
     bool restart_mode_;
     bool noise_mode_;
     double pose_noise_;
@@ -343,8 +348,10 @@ class RacecarSimulator {
 
         // integrator(update_pose_rate, json_paths);
         is_collision_ = false;
-        collision_num_ = -1;
+        curr_lap_collision_num_ = -1;
+        total_collision_num_ = -1;
         lap_ = 0;
+        recent_collision_time_ = ros::Time::now().toSec();
         std::vector<geometry_msgs::PointStamped> random_pose_array;
         if (random_pose_) {
             std::ifstream read_file;
@@ -639,12 +646,24 @@ class RacecarSimulator {
         marker.scale.z = 1.0; // 텍스트 크기
 
         // 시간을 문자열로 변환 (최대 소수점 3자리)
-        std::stringstream ss, oss;
+        std::stringstream ss, oss, oss2;
+
+        checkOneLapPass();
+        double tmp1 = total_collision_num_;
+        double tmp2 = lap_;
+        double collision_rate = tmp1 / tmp2;
+        if (lap_ == 0) {
+            avg_lap_time_score_ = 0;
+            collision_rate = 0;
+            curr_lap_collision_num_ = 0;
+            avg_lap_time_score_ = 0;
+        }
         ss << std::fixed << std::setprecision(3) << time;
         oss << std::fixed << std::setprecision(3) << avg_lap_time_score_;
-        checkOneLapPass();
-        marker.text = "Sim Time : " + ss.str() + "\n lap : " + std::to_string(lap_) + " \n Avg lap score : " + oss.str() +
-                      "\n collision num : " + std::to_string(collision_num_);
+        oss2 << std::fixed << std::setprecision(3) << collision_rate;
+
+        marker.text = "Sim Time : " + ss.str() + "\n Lap : " + std::to_string(lap_) + " \n Avg Lap Score : " + oss.str() +
+                      "\n Curr Lap Collision Num : " + std::to_string(curr_lap_collision_num_) + "\n Collision rate per Lap : " + oss2.str();
 
         // 색상 및 기간 설정
         marker.color.r = 1.0f;
@@ -669,8 +688,10 @@ class RacecarSimulator {
             }
             start_time_ = ros::Time::now().toSec();
             double collision_penalty_time = 5.0;
-            lap_time_score_ = new_lap_time_ + collision_num_ * collision_penalty_time;
+            lap_time_score_ = new_lap_time_ + curr_lap_collision_num_ * collision_penalty_time;
             avg_lap_time_score_ = (avg_lap_time_score_ * (lap_ - 1) + lap_time_score_) / lap_;
+
+            curr_lap_collision_num_ = 0;
         }
         s_prev_ = curr_s_lists_[0];
     }
@@ -1201,7 +1222,8 @@ class RacecarSimulator {
             std_msgs::Bool is_collision;
             is_collision.data = is_collision_;
             if (is_collision_) {
-                collision_num_++;
+                curr_lap_collision_num_++;
+                total_collision_num_++;
                 collision_pub_.publish(is_collision);
             }
             if (is_collision_ && restart_mode_) {
@@ -1709,14 +1731,21 @@ class RacecarSimulator {
     }
 
     bool checkAllCollisions(const std::vector<std::vector<geometry_msgs::Point>> &obs_corner_pts) {
-        double thresh = width_ / 2.0;
+        double thresh = 0.1;                                      //(width_) / 2.0;
         for (size_t i = 0; i < min_scan_distances_.size(); i++) { // wall collision check
             if (i != 0)                                           // only check ego vehicle
                 break;
             if (min_scan_distances_[i] < thresh) {
                 // fprintf(stderr, "Collision detected\n");
-                if (i == 0)      // collision reset occurs only when ego vehicle collides
+                if (i == 0) // collision reset occurs only when ego vehicle collides
+                {
+                    double curr_time = ros::Time::now().toSec();
+                    if (curr_time - recent_collision_time_ < 1.0)
+                        break;
+                    recent_collision_time_ = curr_time;
                     return true; // Collision detected between two vehicles
+                }
+
                 else {
                     obj_collision_[i] = true;
                 }
