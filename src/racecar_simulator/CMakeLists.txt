@@ -13,13 +13,19 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 find_package(OpenCV)
 find_package(Eigen3)
-find_package(control_msgs)
+find_package(catkin REQUIRED COMPONENTS
+control_msgs
+)
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+  include
+)
 ######################################
 # Compile the library >
 ######################################
 
 # Add includes
-include_directories(include)
+# include_directories(include)
 file(GLOB SRC_FILES src/*.cpp)
 add_library(${PROJECT_NAME} ${SRC_FILES})
 target_link_libraries(${PROJECT_NAME} ${LIBS})

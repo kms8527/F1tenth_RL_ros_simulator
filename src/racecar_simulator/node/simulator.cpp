@@ -35,8 +35,12 @@
 #include "control_msgs/CarState.h"
 #include "control_msgs/reset.h"
 #include "control_msgs/sync_control.h"
+#include "f1_msgs/f1_state.h"
+#include <geometry_msgs/PoseArray.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float32MultiArray.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_listener.h>
 
 using namespace racecar_simulator;
 // using namespace mpcc;
@@ -173,6 +177,8 @@ class RacecarSimulator {
     ros::Subscriber pose_rviz_sub_;
     ros::Subscriber opp_pose_rviz_sub_;
     ros::Subscriber observation_sub_;
+    ros::Subscriber paper_obstacle_pose_sub_;
+    ros::Subscriber paper_ego_pose_sub_;
 
     // synchronized mode
     double sync_time_step_; // in seconds, TODO : synchronize with MPC time
@@ -438,6 +444,10 @@ class RacecarSimulator {
 
         reset_service_ = n.advertiseService("/reset_service", &RacecarSimulator::reset_server, this);
 
+        // for paper
+        paper_ego_pose_sub_ = n.subscribe<geometry_msgs::PoseStamped>("/viz_pose", 1, &RacecarSimulator::paper_ego_pose_callback, this);
+        paper_obstacle_pose_sub_ = n.subscribe<geometry_msgs::PoseArray>("/opponent", 1, &RacecarSimulator::paper_obstacle_pose_callback, this);
+
         // Start a subscriber to listen to drive commands
         for (int i = 0; i < obj_num_; i++) {
             ros::Subscriber drive_sub, pose_sub;
@@ -486,6 +496,7 @@ class RacecarSimulator {
             drive_sub_.push_back(drive_sub);
             state_pub_.push_back(state_pub);
             // pose_sub_.push_back(pose_sub);
+
             // pose_rviz_sub_.push_back(pose_rviz_sub);
             noise_pose_pub_.push_back(noise_pose_pub);
             scan_pub_.push_back(scan_pub);
@@ -778,11 +789,11 @@ class RacecarSimulator {
                 ROS_INFO("control mode error");
             set_steer_angle_vel(compute_steer_vel(desired_steer_ang_[i], i), i);
 
-            if (!obj_collision_[i]) {
-                state_[i] = STKinematics::update(state_[i], accel_[i], steer_angle_vel_[i], params_, sync_time_step_);
-                state_[i].velocity = std::min(std::max(state_[i].velocity, -max_speed_), max_speed_);
-                state_[i].steer_angle = std::min(std::max(state_[i].steer_angle, -max_steering_angle_), max_steering_angle_);
-            }
+            // if (!obj_collision_[i]) {
+            //     state_[i] = STKinematics::update(state_[i], accel_[i], steer_angle_vel_[i], params_, sync_time_step_);
+            //     state_[i].velocity = std::min(std::max(state_[i].velocity, -max_speed_), max_speed_);
+            //     state_[i].steer_angle = std::min(std::max(state_[i].steer_angle, -max_steering_angle_), max_steering_angle_);
+            // }
 
             // previous_seconds = current_seconds;
 
@@ -1405,6 +1416,67 @@ class RacecarSimulator {
     //     state_[i].theta = tf2::impl::getYaw(quat);
     // }
 
+    void paper_obstacle_pose_callback(const geometry_msgs::PoseArrayConstPtr &msg) {
+        static tf2_ros::Buffer tf_buffer;
+        static tf2_ros::TransformListener tf_listener(tf_buffer);
+
+        if (msg->poses.empty()) {
+            return;
+        }
+        geometry_msgs::Pose pose = msg->poses[0];
+
+        geometry_msgs::PointStamped base_point;
+        base_point.header.frame_id = "base_link";
+        base_point.point.x = pose.position.x;
+        base_point.point.y = pose.position.y;
+        base_point.point.z = pose.position.z;
+
+        geometry_msgs::PointStamped map_point;
+
+        try {
+            // base_link 좌표계를 map 좌표계로 변환
+            tf_buffer.transform(base_point, map_point, "map");
+
+            // 변환된 위치 출력
+            ROS_INFO("Obstacle Position in map frame: (%.2f, %.2f, %.2f)", map_point.point.x, map_point.point.y, map_point.point.z);
+
+            // orientation도 동일하게 변환 (여기서는 orientation을 쿼터니언으로 다룸)
+            geometry_msgs::TransformStamped transform_stamped;
+            transform_stamped = tf_buffer.lookupTransform("map", "base_link", ros::Time(0));
+
+            tf2::Quaternion base_quat;
+            tf2::fromMsg(pose.orientation, base_quat);
+
+            tf2::Quaternion map_quat = tf2::Quaternion(transform_stamped.transform.rotation.x, transform_stamped.transform.rotation.y,
+                                                       transform_stamped.transform.rotation.z, transform_stamped.transform.rotation.w) *
+                                       base_quat;
+
+            // 변환된 방향 출력
+            // ROS_INFO("Obstacle Orientation in map frame: (%.2f, %.2f, %.2f, %.2f)", map_quat.x(), map_quat.y(), map_quat.z(), map_quat.w());
+            state_[1].x = map_point.point.x;
+            state_[1].y = map_point.point.y;
+            state_[1].theta = tf2::impl::getYaw(map_quat);
+
+        } catch (tf2::TransformException &ex) {
+            ROS_ERROR("Received an exception trying to transform a point from \"base_link\" to \"map\": %s", ex.what());
+        }
+    }
+
+    void paper_ego_pose_callback(const geometry_msgs::PoseStamped::ConstPtr &odom_msg) {
+        double x = odom_msg->pose.position.x;
+        double y = odom_msg->pose.position.y;
+        // yaw = tf::getYaw(odom_msg->pose.orientation);
+        geometry_msgs::Quaternion q = odom_msg->pose.orientation;
+        tf2::Quaternion quat(q.x, q.y, q.z, q.w);
+
+        double curr_yaw = tf2::impl::getYaw(quat);
+        state_[0].x = x;
+        state_[0].y = y;
+        // geometry_msgs::Quaternion q = ;
+        // tf2::Quaternion quat(q.x, q.y, q.z, q.w);
+        state_[0].theta = curr_yaw;
+    }
+
     void pose_callback(const geometry_msgs::PoseStampedConstPtr &msg, int i) {
         state_[i].x = msg->pose.position.x;
         state_[i].y = msg->pose.position.y;
@@ -1412,7 +1484,11 @@ class RacecarSimulator {
         tf2::Quaternion quat(q.x, q.y, q.z, q.w);
         state_[i].theta = tf2::impl::getYaw(quat);
     }
-
+    /**
+     * @brief subscribe pose from rviz about 0 vehicle
+     *
+     * @param msg
+     */
     void pose_rviz_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg) {
         geometry_msgs::PoseStamped temp_pose;
         temp_pose.header = msg->header;

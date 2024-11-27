@@ -1,0 +1,4 @@
+std_msgs/Float32MultiArray control_input
+---
+bool collision
+CarState[] state
